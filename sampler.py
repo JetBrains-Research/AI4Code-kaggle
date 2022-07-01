@@ -1,5 +1,10 @@
+from collections import defaultdict
+from datetime import date
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
+from imblearn.under_sampling import RandomUnderSampler
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 
@@ -8,25 +13,54 @@ tqdm.pandas()
 
 class Sampler:
 
-    def __init__(self, path, asymmetric=False, sample_method='harmonic', dist_processing='log', filter='markdown',
-                 sample_size=0.1):
+    def __init__(self, path, asymmetric=False, sample_method='harmonic', dist_processing='log', filtration='first_md',
+                 sample_size=0.1, debug=False, balance_classes=True):
+
         self.df = pd.read_feather(path)
         self.presampling(sample_size)
         self.rng = np.random.default_rng()
         self.mms = MinMaxScaler()
-        self.name = 'data'
         self.asymmetric = asymmetric
 
-        self.mapping = {
+        self.classification_bins = (-np.inf, -5, -1, 1, 5, np.inf)
+        self.balance = balance_classes & (dist_processing in ['binary', 'multiclass'])
+        if balance_classes:
+            self.rs = RandomUnderSampler(sampling_strategy='not minority')
+
+        self.mapping = defaultdict(self.def_mapping_value)
+
+        self.mapping.update({
             'log': self.log_dist,
+            'binary': self.binary_dist,
+            'multiclass': self.multiclass_dist,
             'normalised': self.normalised_dist,
-            'harmonic': self.harmonic_sampling_new,
-            'markdown': self.filter_markdown
-        }
+            'harmonic': self.harmonic_sampling,
+            'first_md': self.filter_markdown
+        })
 
         self.sampling_method = self.mapping[sample_method]
         self.process_distance = self.mapping[dist_processing]
-        self.filter = self.mapping[filter]
+        self.filter = self.mapping[filtration]
+
+        sym = 'sym' if not asymmetric else 'asym'
+        balanced = 'bal' if balance_classes else 'non_bal'
+        self.name = f'{dist_processing}_{sym}_{filtration}_{balanced}_pairs.fth'
+
+        self.debug = debug
+
+    def sample_notebook(self, nb_id=None):
+        rand_id = nb_id if nb_id else self.df.id.sample(1).values[0]
+        nb_df = self.df.loc[self.df.id == rand_id, :]
+        return nb_df
+
+    @staticmethod
+    def def_mapping_value():
+        print('empty or non-existing preprocessing was entered')
+
+        def placeholder(sample, *args, **kwargs):
+            return sample
+
+        return placeholder
 
     def presampling(self, sample_size):
         nb_ids = self.df.id.unique()
@@ -35,7 +69,7 @@ class Sampler:
         self.df = self.df.loc[self.df.id.isin(sample_ids), :]
 
     @staticmethod
-    def filter_markdown(nb_df, full_sample):
+    def filter_markdown(full_sample, nb_df):
         md_ids = nb_df.loc[nb_df.cell_type == 'markdown', 'rank']
         return full_sample[np.isin(full_sample[:, 0], md_ids.values)]
 
@@ -62,7 +96,7 @@ class Sampler:
                 subsample = self.rng.choice(subsample, int(amount))
             sample.append(subsample)
 
-        all_pairs = np.concatenate(sample)
+        all_pairs = np.concatenate(sample) if len(sample) > 0 else np.empty((0, 3))
         return all_pairs
 
     @staticmethod
@@ -72,29 +106,51 @@ class Sampler:
     def normalised_dist(self, distance):
         return self.mms.fit_transform(distance.reshape(-1, 1))
 
+    @staticmethod
+    def binary_dist(distance):
+        return np.where((distance == 1) | (distance == -1), 1, 0)
+
+    def multiclass_dist(self, distance):
+        return np.digitize(distance, self.classification_bins)
+
+    def balance_classes(self, sample):
+        sample, _ = self.rs.fit_resample(sample, sample[:, 2].astype(int).reshape(-1, 1))
+        return sample
+
     def sample_pairs(self, nb_df):
         # print(nb_df.id)
         full_sample = self.build_pairwise_distance(nb_df)
-        filtered_sample = self.filter(nb_df, full_sample)
-        sample = self.sampling_method(filtered_sample)
+        filtered_sample = self.filter(full_sample, nb_df)
+        try:
+            sample = self.sampling_method(filtered_sample)
+        except:
+            print(nb_df)
+
         if len(sample) > 0:
             code = nb_df.source.to_numpy()[sample[:, :2]]
-            distance = self.process_distance(sample[:, 2])
-            sample = np.hstack([code, distance.reshape(-1, 1)])
-            return sample
+            processed_distance = self.process_distance(sample[:, 2])
+            calc_sample = np.hstack([code, processed_distance.reshape(-1, 1)])
+
+            # if self.debug:
+            #     self.debug_sample = sample
+
+            if self.balance and (len(np.unique(calc_sample[:, 2])) > 1):
+                calc_sample = self.balance_classes(calc_sample)
+
+            return calc_sample
 
     def sample(self, save=True):
         pairs_df = self.df.groupby('id').progress_apply(self.sample_pairs).explode()
         pairs_df = pairs_df.dropna()
         pairs_df = pd.DataFrame(pairs_df.to_list(), columns=['p1', 'p2', 'score'], index=pairs_df.index)
-        #
-        # if save:
-        #     self.save_dataset()
+
+        if save:
+            self.save_dataset(pairs_df.reset_index())
 
         return pairs_df
 
-    def name_generator(self):
-        pass
-
-    def save_dataset(self):
-        pass
+    def save_dataset(self, pairs):
+        today = date.today()
+        path = Path(f'data/{today}/')
+        path.mkdir(parents=True, exist_ok=True)
+        pairs.reset_index().to_feather(path / f'{self.name}')

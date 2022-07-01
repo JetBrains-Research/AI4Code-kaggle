@@ -205,6 +205,27 @@ unicode = ["unicodedata2 (>=14.0.0)"]
 woff = ["zopfli (>=0.1.4)", "brotlicffi (>=0.8.0)", "brotli (>=1.0.1)"]
 
 [[package]]
+name = "imbalanced-learn"
+version = "0.9.1"
+description = "Toolbox for imbalanced dataset in machine learning."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+joblib = ">=1.0.0"
+numpy = ">=1.17.3"
+scikit-learn = ">=1.1.0"
+scipy = ">=1.3.2"
+threadpoolctl = ">=2.0.0"
+
+[package.extras]
+docs = ["pandas (>=1.0.5)", "tensorflow (>=2.4.3)", "keras (>=2.4.3)", "matplotlib (>=3.1.2)", "seaborn (>=0.9.0)", "memory-profiler (>=0.57.0)", "sphinx (>=4.2.0)", "sphinx-gallery (>=0.7.0)", "numpydoc (>=1.0.0)", "sphinxcontrib-bibtex (>=2.4.1)", "pydata-sphinx-theme (>=0.7.2)"]
+examples = ["pandas (>=1.0.5)", "tensorflow (>=2.4.3)", "keras (>=2.4.3)", "matplotlib (>=3.1.2)", "seaborn (>=0.9.0)"]
+optional = ["pandas (>=1.0.5)", "tensorflow (>=2.4.3)", "keras (>=2.4.3)"]
+tests = ["pandas (>=1.0.5)", "tensorflow (>=2.4.3)", "keras (>=2.4.3)", "pytest (>=5.0.1)", "pytest-cov (>=2.9.0)", "flake8 (>=3.8.2)", "black (>=22.3.0)", "mypy (>=0.770)"]
+
+[[package]]
 name = "ipykernel"
 version = "6.15.0"
 description = "IPython Kernel for Jupyter"
@@ -1117,7 +1138,7 @@ scikit-learn = ["scikit-learn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "5a9b98b489a17a61dc9667b87bc5c6c4de13883ca205abf8252d47894d235614"
+content-hash = "22a3834181e6ac0a8d8da7dc46fe017adb3ddd3e7fbe11b4cc084c484bb96377"
 
 [metadata.files]
 appnope = [
@@ -1274,6 +1295,10 @@ fastjsonschema = [
 fonttools = [
     {file = "fonttools-4.33.3-py3-none-any.whl", hash = "sha256:f829c579a8678fa939a1d9e9894d01941db869de44390adb49ce67055a06cc2a"},
     {file = "fonttools-4.33.3.zip", hash = "sha256:c0fdcfa8ceebd7c1b2021240bd46ef77aa8e7408cf10434be55df52384865f8e"},
+]
+imbalanced-learn = [
+    {file = "imbalanced-learn-0.9.1.tar.gz", hash = "sha256:4e14f7ae6078b5ab843b73c379b2ac50b207446415d9c2438c885d6cb5afd962"},
+    {file = "imbalanced_learn-0.9.1-py3-none-any.whl", hash = "sha256:2a792a4af9c814d4f95552646fa2148edd2195d564821d1738aab45b1e8d6461"},
 ]
 ipykernel = [
     {file = "ipykernel-6.15.0-py3-none-any.whl", hash = "sha256:b9ed519a29eb819eb82e87e0d3754088237b233e5c647b8bb0ff23c8c70ed16f"},
