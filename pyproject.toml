@@ -14,6 +14,7 @@ pyarrow = "^8.0.0"
 scikit-learn = "^1.1.1"
 xgboost = "^1.6.1"
 imbalanced-learn = "^0.9.1"
+boto3 = "^1.24.21"
 
 [tool.poetry.dev-dependencies]
 
