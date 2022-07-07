@@ -9,7 +9,7 @@ class Dataset:
 
     def __init__(self, read_path, save_path, clean_forks=False):
 
-        self.data = self.read_all_data(read_path)
+        self.data = self._read_all_data(read_path)
 
         self.order_df = pd.read_csv(read_path / 'train_orders.csv', index_col='id')
         self.order_df = self.order_df.cell_order.apply(str.split)
