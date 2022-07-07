@@ -1,21 +1,20 @@
-import wandb
 import pandas as pd
-import numpy as np
-import pytorch_lightning as pl
-from datasets import Dataset
-from transformers import RobertaConfig, RobertaModel, RobertaTokenizerFast, AdamW
-from torch.utils.data import DataLoader
-import torch
-from torchmetrics import R2Score
-import datasets
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning import Trainer
-
 import os
+
+import datasets
+import numpy as np
+import pandas as pd
+import pytorch_lightning as pl
+import torch
+from datasets import Dataset
+from pytorch_lightning.loggers import WandbLogger
+from torch.utils.data import DataLoader
+from transformers import RobertaModel, RobertaTokenizerFast
+
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
-
 datasets.logging.disable_progress_bar()
+
 
 class CodeBERTBaseLine(pl.LightningModule):
 
@@ -28,9 +27,8 @@ class CodeBERTBaseLine(pl.LightningModule):
                                                      output_attentions=False,
                                                      output_hidden_states=False,
                                                      return_dict=True)
- 
 
-#        self.dropout = torch.nn.Dropout(0.3)
+        #        self.dropout = torch.nn.Dropout(0.3)
         self.dropout = torch.nn.Dropout(0.0)
         self.dense = torch.nn.Linear(768, 200)
         self.regression = torch.nn.Linear(200, 1)
@@ -47,8 +45,8 @@ class CodeBERTBaseLine(pl.LightningModule):
         self.log(f'major_class_percent_{process_stage}', major_class_percent)
 
     def forward(self, input_ids, attention_mask, score):
-#        with torch.no_grad():
-#            self.codebert.eval()
+        #        with torch.no_grad():
+        #            self.codebert.eval()
         codebert = self.codebert(input_ids, attention_mask)
 
         codebert_output = self.activation(codebert['pooler_output'])
@@ -65,7 +63,7 @@ class CodeBERTBaseLine(pl.LightningModule):
         # return self.full_regression(codebert_output)
 
     def training_step(self, batch, batch_idx):
-        #print(batch)
+        # print(batch)
         preds = self.forward(**batch).reshape(-1)
         loss = self.loss(preds, batch['score'])
         # loss = (preds - batch['score']) ** 2
@@ -98,7 +96,7 @@ class CodeBERTBaseLine(pl.LightningModule):
         loss = self.loss(preds, batch["score"])
         self.log('val_batch_loss', loss)
         # self.log('val_batch_score', acc)
-        
+
         return loss
         # return acc
 
@@ -119,7 +117,7 @@ class JupyterPairsDataModule(pl.LightningDataModule):
             self, train_path: str, test_path: str = None, model="microsoft/codebert-base",
             train_val_split: float = 0.8, batch_size: int = 32, padding: int = 512,
             make_abs: bool = False, binarize: bool = False
-        ):
+    ):
 
         super().__init__()
 
@@ -205,13 +203,14 @@ class JupyterPairsDataModule(pl.LightningDataModule):
             pass
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset['train'], batch_size=self.batch_size, num_workers=24, pin_memory=True, shuffle=True)
+        return DataLoader(self.train_dataset['train'], batch_size=self.batch_size, num_workers=24, pin_memory=True,
+                          shuffle=True)
 
     def val_dataloader(self):
         return DataLoader(self.train_dataset['test'], batch_size=self.batch_size, num_workers=24, pin_memory=True)
 
-    
-JDM = JupyterPairsDataModule(f'data/log_symmetric_pairs.fth', batch_size=32, binarize=True)
+
+JDM = JupyterPairsDataModule(f'../../data/log_symmetric_pairs.fth', batch_size=32, binarize=True)
 
 wandb_logger = WandbLogger(project="JupyterBert", entity="jbr_jupyter")
 
@@ -223,8 +222,6 @@ trainer = pl.Trainer(accelerator="gpu",
                      log_every_n_steps=1,
                      accumulate_grad_batches=4,
                      val_check_interval=0.5)
-                     
-
 
 model = CodeBERTBaseLine()
 trainer.fit(model, JDM)

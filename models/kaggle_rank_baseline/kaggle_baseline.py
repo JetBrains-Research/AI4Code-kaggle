@@ -1,19 +1,17 @@
-import pandas as pd
-import yaml
-import sys, os
+import sys
+
 import numpy as np
-
-import torch.nn.functional as F
-import torch.nn as nn
+import pandas as pd
 import torch
-
-from sklearn.model_selection import GroupShuffleSplit
+import torch.nn as nn
+import yaml
 from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import GroupShuffleSplit
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from transformers import DistilBertModel, DistilBertTokenizer
-from torch.utils.data import DataLoader, Dataset
 
-BERT_PATH = "../input/huggingface-bert-variants/distilbert-base-uncased/distilbert-base-uncased"
+BERT_PATH = "../input/huggingface-bert_classification-variants/distilbert-base-uncased/distilbert-base-uncased"
 NVALID = 0.1  # size of validation set
 MAX_LEN = 128
 
@@ -176,7 +174,9 @@ def run_baseline(train_path):
 
 if __name__ == "__main__":
     with open("paths.yaml", "r") as stream:
-        try: path = yaml.safe_load(stream)['train_path']
-        except yaml.YAMLError as exc: print(exc)
+        try:
+            path = yaml.safe_load(stream)['train_path']
+        except yaml.YAMLError as exc:
+            print(exc)
 
     model, y_pred = run_baseline(path)

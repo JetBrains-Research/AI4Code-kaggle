@@ -1,21 +1,14 @@
 import pandas as pd
-import yaml
-import sys, os
-import numpy as np
-
-import torch.nn as nn
-import torch
-
 import pytorch_lightning as pl
+import torch
+import torch.nn as nn
+import yaml
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks.progress import TQDMProgressBar
-from pytorch_lightning.loggers import CSVLogger
-
 from sklearn.model_selection import GroupShuffleSplit
-from transformers import DistilBertModel, DistilBertTokenizer
 from torch.utils.data import DataLoader, Dataset
+from transformers import DistilBertModel, DistilBertTokenizer
 
-BERT_PATH = "../input/huggingface-bert-variants/distilbert-base-uncased/distilbert-base-uncased"
+BERT_PATH = "../input/huggingface-bert_classification-variants/distilbert-base-uncased/distilbert-base-uncased"
 NVALID = 0.1  # size of validation set
 MAX_LEN = 128
 
