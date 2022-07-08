@@ -18,6 +18,8 @@ class Sampler:
                  sample_size=0.1, debug=False, balance_classes=True):
 
         self.df = pd.read_feather(path)
+        self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")["cell_id"].transform("count")
+
         self.presampling(sample_size)
         self.rng = np.random.default_rng()
         self.mms = MinMaxScaler()
@@ -148,7 +150,9 @@ class Sampler:
             return calc_sample
 
     def sample_ranks(self, amount=None):
+
         markdowns_subset = self.df[self.df['cell_type'] == 'markdown']
+
         if amount is None:
             return markdowns_subset[['source', 'pct_rank', 'ancestor_id']]
 
