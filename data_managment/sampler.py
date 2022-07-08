@@ -14,6 +14,7 @@ tqdm.pandas()
 class Sampler:
 
     def __init__(self, path, asymmetric=False, sample_method='harmonic', dist_processing='log', filtration='first_md',
+                 pair_filtration=('first_md', 'second_cd'),
                  sample_size=0.1, debug=False, balance_classes=True):
 
         self.df = pd.read_feather(path)
@@ -35,7 +36,8 @@ class Sampler:
             'multiclass': self.multiclass_dist,
             'normalised': self.normalised_dist,
             'harmonic': self.harmonic_sampling,
-            'first_md': self.filter_markdown
+            'first_md': self.filter_markdown,
+            ('first_md', 'second_cd'): self.filter_markdown_code
         })
 
         self.sampling_method = self.mapping[sample_method]
@@ -72,6 +74,12 @@ class Sampler:
     def filter_markdown(full_sample, nb_df):
         md_ids = nb_df.loc[nb_df.cell_type == 'markdown', 'rank']
         return full_sample[np.isin(full_sample[:, 0], md_ids.values)]
+
+    @staticmethod
+    def filter_markdown_code(full_sample, nb_df):
+        md_ids = nb_df.loc[nb_df.cell_type == 'markdown', 'rank']
+        cd_ids = nb_df.loc[nb_df.cell_type == 'code', 'rank']
+        return full_sample[(np.isin(full_sample[:, 0], md_ids.values)) & (np.isin(full_sample[:, 1], cd_ids.values))]
 
     @staticmethod
     def build_pairwise_distance(nb_df):
