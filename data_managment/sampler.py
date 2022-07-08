@@ -142,10 +142,10 @@ class Sampler:
     def sample_ranks(self, amount=None):
         markdowns_subset = self.df[self.df['cell_type'] == 'markdown']
         if amount is None:
-            return markdowns_subset[['source', 'pct_rank']]
+            return markdowns_subset[['source', 'pct_rank', 'ancestor_id']]
 
         md_ids = np.random.choice(markdowns_subset.id, amount)
-        return markdowns_subset.loc[markdowns_subset.id.isin(md_ids), ['source', 'pct_rank']]
+        return markdowns_subset.loc[markdowns_subset.id.isin(md_ids), ['source', 'pct_rank', 'ancestor_id']]
 
     def sample(self, save=True):
         pairs_df = self.df.groupby('id').progress_apply(self.sample_pairs).explode()
