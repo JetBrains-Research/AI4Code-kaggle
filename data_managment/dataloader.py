@@ -7,10 +7,11 @@ from tqdm import tqdm
 
 class Dataset:
 
-    def __init__(self, read_path, clean_forks=False, inference=False, n=None):
+    def __init__(self, read_path, clean_forks=False, inference=False, n=None, notebook_ids=None):
 
         self.test = inference
         self.n = n
+        self.notebook_ids = notebook_ids
         self.data = self._read_subset(read_path)
 
         if not self.test:
@@ -31,8 +32,11 @@ class Dataset:
             return df
 
     def _read_subset(self, data_path):
-        paths_train = list(data_path.glob('*.json'))
-        paths_train = paths_train[:self.n] if self.n else paths_train
+        if self.notebook_ids is None:
+            paths_train = list(data_path.glob('*.json'))
+            paths_train = paths_train[:self.n] if self.n else paths_train
+        else:
+            paths_train = [data_path / f"{notebook_id}.json" for notebook_id in self.notebook_ids]
 
         dfs = [self.__read_notebook(path) for path in tqdm(paths_train)]
         main_df = pd.concat(dfs)
