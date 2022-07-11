@@ -11,6 +11,8 @@ from imblearn.under_sampling import RandomUnderSampler
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 
+from features import FeaturesProcessor
+
 tqdm.pandas()
 
 
@@ -195,66 +197,22 @@ class MDSampler(Sampler):
         n = len(code_df) if n > len(code_df) else n
         return ' '.join(code_df.source.sample(n).astype(str).tolist())
 
-    def calculate_features(self, grouped_df, feature_list):
-        # Run feature calc here
-        features = dict()
+    @staticmethod
+    def calculate_features(grouped_df, feature_list):
+        processor = FeaturesProcessor()
+        return processor.process(grouped_df, feature_list)
 
-        plot_functions = {
-            'histplot', 'kdeplot', 'displot',
-            'displot', 'scatterplot', 'relplot',
-            'jointplot', 'plot', 'show',
-            'pairplot', 'countplot', 'jointplot'
-            'relplot', 'lmplot', 'catplot',
-            'scatter', 'hist'
-        }
-
-        def get_functions_and_variables(source):
-            try:
-                code_text = tokenize.generate_tokens(io.StringIO(source).readline)
-                fv_list = [tok.string for tok in code_text if tok.type == 1]
-            except (tokenize.TokenError, IndentationError) as e:
-                return [], []
-
-            fv_plot = [s for s in fv_list if any([s in p for p in plot_functions])]
-            return fv_list, fv_plot
-
-        cell_counts = grouped_df.cell_type.value_counts().unstack()
-        cell_counts['ratio'] = cell_counts['markdown'] / cell_counts['code']
-        cell_counts['total'] = (cell_counts['markdown'] + cell_counts['code']).astype(int)
-        mean_ratios_by_count = cell_counts.groupby('total').ratio.mean()
-
-        for idx, sub_df in tqdm(grouped_df):
-            features[idx] = dict()
-            total_md = cell_counts.loc[idx].markdown
-            total_code = cell_counts.loc[idx].code
-
-            code_sub_df = sub_df[sub_df.cell_type == "code"]
-            source_code = '\n'.join(code_sub_df.source)
-            funcs_and_vars, plot_funcs = get_functions_and_variables(source_code)
-            defined_functions = re.findall("def (.*)\(", source_code)
-
-            features[idx] = {
-                "total_code": total_code,
-                "total_md": total_md,
-
-                "defined_functions": " ".join(defined_functions),
-                "normalized_defined_functions": len(plot_funcs) / total_code,
-                "normalized_plot_functions": len(defined_functions) / total_code,
-
-                "mean_ratio_in_same_notebooks": mean_ratios_by_count.loc[total_md + total_code],
-                "normalized_sloc": len(source_code.splitlines()) / total_code,
-            }
-
-        features = [feature_fun(grouped_df) for feature_fun in feature_list]
-
-        return pd.DataFrame.from_dict(features, orient='index')
-
-    def sample_ranks(self, feature_list, save=True):
+    def sample_ranks(
+            self,
+            feature_list=('md_count', 'code_count', 'defined_functions',
+                          'normalized_plot_functions', 'normalized_defined_functions',
+                          'normalized_sloc'),
+            save=True
+    ):
         base_features = ['source', 'pct_rank', 'ancestor_id']
         base_features.extend(feature_list)
 
-        # feature_df = self.df.groupby('id').apply(self.calculate_features, args=feature_list)
-        feature_df = self.calculate_features(self.df.groupby('id'), feature_list)
+        feature_df = self.df.groupby('id').apply(self.calculate_features, args=feature_list)
 
         markdowns_subset = self.df.merge(feature_df, left_on='id', right_index=True)
         markdowns_subset = markdowns_subset[markdowns_subset == 'markdown', base_features]
