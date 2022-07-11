@@ -198,8 +198,7 @@ class MDSampler(Sampler):
         return ' '.join(code_df.source.sample(n).astype(str).tolist())
 
     @staticmethod
-    def calculate_features(grouped_df, feature_list):
-        processor = FeaturesProcessor()
+    def calculate_features(grouped_df, feature_list, processor):
         return processor.process(grouped_df, feature_list)
 
     def sample_ranks(
@@ -212,7 +211,10 @@ class MDSampler(Sampler):
         base_features = ['source', 'pct_rank', 'ancestor_id']
         base_features.extend(feature_list)
 
-        feature_df = self.df.groupby('id').apply(self.calculate_features, args=feature_list)
+        processor = FeaturesProcessor()
+        feature_df = self.df.groupby('id').apply(self.calculate_features,
+                                                 feature_list=feature_list,
+                                                 processor=processor)
 
         markdowns_subset = self.df.merge(feature_df, left_on='id', right_index=True)
         markdowns_subset = markdowns_subset[markdowns_subset == 'markdown', base_features]
