@@ -11,13 +11,13 @@ class Dataset:
 
         self.test = inference
         self.n = n
-        self.data = self._read_all_data(read_path)
+        self.data = self._read_subset(read_path)
 
         if not self.test:
-            self.order_df = pd.read_csv(read_path / 'train_orders.csv', index_col='id')
+            self.order_df = pd.read_csv(read_path.parents[0] / 'train_orders.csv', index_col='id')
             self.order_df = self.order_df.cell_order.apply(str.split)
 
-            self.ancestors = pd.read_csv(read_path / 'train_ancestors.csv')
+            self.ancestors = pd.read_csv(read_path.parents[0] / 'train_ancestors.csv')
             self.clean_forks = clean_forks
 
     @staticmethod
@@ -30,8 +30,8 @@ class Dataset:
 
             return df
 
-    def _read_subset(self, data_path, dataset, save=True):
-        paths_train = list((data_path / dataset).glob('*.json'))
+    def _read_subset(self, data_path):
+        paths_train = list(data_path.glob('*.json'))
         paths_train = paths_train[:self.n] if self.n else paths_train
 
         dfs = [self.__read_notebook(path) for path in tqdm(paths_train)]
@@ -40,10 +40,6 @@ class Dataset:
         #     main_df.to_csv(f'{dataset}_dataset.csv')
 
         return main_df
-
-    def _read_all_data(self, path):
-        data = self._read_subset(path, 'test') if self.test else self._read_subset(path, 'train')
-        return data
 
     def _place_forks(self):
         self.data = self.data.merge(self.ancestors, on='id')
