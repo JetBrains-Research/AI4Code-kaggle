@@ -12,21 +12,44 @@ tqdm.pandas()
 
 
 class Sampler:
-
-    def __init__(self, path, asymmetric=False, sample_method='harmonic', dist_processing='log', filtration='first_md',
-                 pair_filtration=('first_md', 'second_cd'),
-                 sample_size=0.1, debug=False, balance_classes=True):
-
+    def __init__(self, path, sample_size=0.1):
         self.df = pd.read_feather(path)
         self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")["cell_id"].transform("count")
-
         self.presampling(sample_size)
+        self.name = ''
+
+    def presampling(self, sample_size):
+        nb_ids = self.df.id.unique()
+        amount = sample_size if sample_size > 1 else round(len(nb_ids) * sample_size)
+        sample_ids = np.random.choice(nb_ids, amount)
+        self.df = self.df.loc[self.df.id.isin(sample_ids), :]
+
+    def sample_notebook(self, nb_id=None):
+        rand_id = nb_id if nb_id else self.df.id.sample(1).values[0]
+        nb_df = self.df.loc[self.df.id == rand_id, :]
+        return nb_df
+
+    def save_dataset(self, dataset):
+        today = date.today()
+        path = Path(f'data/{today}/')
+        path.mkdir(parents=True, exist_ok=True)
+        dataset.reset_index().to_feather(path / f'{self.name}')
+
+
+class PairwiseSampler(Sampler):
+
+    def __init__(self, path, asymmetric=False, sample_method='harmonic', dist_processing='log', filtration='first_md',
+                 sample_size=0.1, debug=False, balance_classes=True):
+
+        super().__init__(path, sample_size)
+
         self.rng = np.random.default_rng()
         self.mms = MinMaxScaler()
         self.asymmetric = asymmetric
 
         self.classification_bins = (-np.inf, -5, -1, 1, 5, np.inf)
         self.balance = balance_classes & (dist_processing in ['binary', 'multiclass'])
+
         if balance_classes:
             self.rs = RandomUnderSampler(sampling_strategy='not minority')
 
@@ -65,12 +88,6 @@ class Sampler:
             return sample
 
         return placeholder
-
-    def presampling(self, sample_size):
-        nb_ids = self.df.id.unique()
-        amount = sample_size if sample_size > 1 else round(len(nb_ids) * sample_size)
-        sample_ids = np.random.choice(nb_ids, amount)
-        self.df = self.df.loc[self.df.id.isin(sample_ids), :]
 
     @staticmethod
     def filter_markdown(full_sample, nb_df):
@@ -128,36 +145,19 @@ class Sampler:
         return sample
 
     def sample_pairs(self, nb_df):
-        # print(nb_df.id)
         full_sample = self.build_pairwise_distance(nb_df)
         filtered_sample = self.filter(full_sample, nb_df)
-        try:
-            sample = self.sampling_method(filtered_sample)
-        except:
-            print(nb_df)
+        sample = self.sampling_method(filtered_sample)
 
         if len(sample) > 0:
             code = nb_df.source.to_numpy()[sample[:, :2]]
             processed_distance = self.process_distance(sample[:, 2])
             calc_sample = np.hstack([code, processed_distance.reshape(-1, 1)])
 
-            # if self.debug:
-            #     self.debug_sample = sample
-
             if self.balance and (len(np.unique(calc_sample[:, 2])) > 1):
                 calc_sample = self.balance_classes(calc_sample)
 
             return calc_sample
-
-    def sample_ranks(self, amount=None):
-
-        markdowns_subset = self.df[self.df['cell_type'] == 'markdown']
-
-        if amount is None:
-            return markdowns_subset[['source', 'pct_rank', 'ancestor_id']]
-
-        md_ids = np.random.choice(markdowns_subset.id, amount)
-        return markdowns_subset.loc[markdowns_subset.id.isin(md_ids), ['source', 'pct_rank', 'ancestor_id']]
 
     def sample(self, save=True):
         pairs_df = self.df.groupby('id').progress_apply(self.sample_pairs).explode()
@@ -169,8 +169,42 @@ class Sampler:
 
         return pairs_df
 
-    def save_dataset(self, pairs):
-        today = date.today()
-        path = Path(f'data/{today}/')
-        path.mkdir(parents=True, exist_ok=True)
-        pairs.reset_index().to_feather(path / f'{self.name}')
+
+class MDSampler(Sampler):
+    def __init__(self, path, sample_size):
+        super().__init__(path, sample_size)
+
+    @staticmethod
+    def get_code_count(sub_df):
+        total_code = sub_df[sub_df.cell_type == "code"].shape[0]
+        return total_code
+
+    @staticmethod
+    def get_md_count(sub_df):
+        total_md = sub_df[sub_df.cell_type == "markdown"].shape[0]
+        return total_md
+
+    @staticmethod
+    def random_global_sample(sub_df, n=20):
+        code_df = sub_df[sub_df.cell_type == "code"]
+
+        n = 20
+        n = len(code_df) if n > len(code_df) else n
+        return ' '.join(code_df.source.sample(n).astype(str).tolist())
+
+    def calculate_features(self, grouped_df):
+        # Run feature calc here
+
+        pass
+
+    def sample_ranks(self, feature_list, save=True):
+        base_features = ['source', 'pct_rank', 'ancestor_id']
+        base_features.extend(feature_list)
+
+        markdowns_subset = self.df.loc[self.df['cell_type'] == 'markdown', base_features]
+        markdowns_subset.groupby('id').apply(self.calculate_features)
+
+        if save:
+            self.save_dataset(markdowns_subset.reset_index())
+
+        return markdowns_subset
