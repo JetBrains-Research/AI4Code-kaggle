@@ -192,8 +192,10 @@ class MDSampler(Sampler):
         n = len(code_df) if n > len(code_df) else n
         return ' '.join(code_df.source.sample(n).astype(str).tolist())
 
-    def calculate_features(self, grouped_df):
+    def calculate_features(self, grouped_df, feature_list):
         # Run feature calc here
+
+        features = [feature_fun(grouped_df) for feature_fun in feature_list]
 
         pass
 
@@ -201,8 +203,10 @@ class MDSampler(Sampler):
         base_features = ['source', 'pct_rank', 'ancestor_id']
         base_features.extend(feature_list)
 
-        markdowns_subset = self.df.loc[self.df['cell_type'] == 'markdown', base_features]
-        markdowns_subset.groupby('id').apply(self.calculate_features)
+        feature_df = self.df.groupby('id').apply(self.calculate_features, args=feature_list)
+        markdowns_subset = self.df.mrege(feature_df, on='id')
+
+        markdowns_subset = markdowns_subset[markdowns_subset == 'markdown', base_features]
 
         if save:
             self.save_dataset(markdowns_subset.reset_index())
