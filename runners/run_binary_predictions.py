@@ -2,6 +2,8 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer
+
+from data_managment.preprocessing import kaggle_cleaning
 from models.transformers import AutoBinaryModel
 from .model_loader import ModelLoader
 from .order_builder import OrderBuilder
@@ -24,23 +26,8 @@ tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base")
 
 df = pd.read_feather(path)
 
-df[["source"]] = df[["source"]].replace(r"\W", " ", regex=True)
-df[["source"]] = df[["source"]].replace(r"\s+[a-zA-Z]\s+", " ", regex=True)
-df[["source"]] = df[["source"]].replace(r"\^[a-zA-Z]\s+", " ", regex=True)
-df[["source"]] = df[["source"]].replace(r"\s+", " ", regex=True)
-df[["source"]] = df[["source"]].replace(r"^b\s+", " ", regex=True)
-df[["source"]] = df[["source"]].replace(r"\s+[a-zA-Z]\s+", " ", regex=True)
+df["source"] = df["source"].apply(lambda s: kaggle_cleaning(s))
 
-
-def process(s):
-    s = s.strip().lower()
-    tokens = s.split()
-    tokens = [stemmer.lemmatize(token) for token in tokens]
-    tokens = [token for token in tokens if len(token) > 3]
-    return " ".join(tokens)
-
-
-df["source"] = df["source"].apply(lambda s: process(s))
 df["text_tokenized"] = df["source"].apply(
     lambda s: tokenizer(s, add_special_tokens=False)["input_ids"][:MAX_LEN]
 )
@@ -58,9 +45,9 @@ class JupDataset(Dataset):
         j = ind % len(self.df)
         tokens = (
             [tokenizer.cls_token_id]
-            + df.iloc[i]["text_tokenized"]
+            + self.df.iloc[i]["text_tokenized"]
             + [122]
-            + df.iloc[j]["text_tokenized"]
+            + self.df.iloc[j]["text_tokenized"]
             + [tokenizer.sep_token_id],
         )
         return tokens

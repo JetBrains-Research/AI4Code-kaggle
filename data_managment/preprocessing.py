@@ -6,6 +6,29 @@ from pandas import DataFrame
 from bs4 import BeautifulSoup
 from markdown import markdown
 
+from nltk.stem import WordNetLemmatizer
+import nltk
+
+nltk.download("wordnet")
+nltk.download("omw-1.4")
+
+stemmer = WordNetLemmatizer()
+
+
+def kaggle_cleaning(document):
+    document = re.sub(r"\W", " ", document)
+    document = re.sub(r"\s+[a-zA-Z]\s+", " ", document)
+    document = re.sub(r"\^[a-zA-Z]\s+", " ", document)
+    document = re.sub(r"\s+", " ", document)
+    document = re.sub(r"^b\s+", " ", document)
+    document = re.sub(r"\s+[a-zA-Z]\s+", " ", document)
+
+    document = document.strip().lower()
+    tokens = document.split()
+    tokens = [stemmer.lemmatize(token) for token in tokens]
+    tokens = [token for token in tokens if len(token) > 3]
+    return " ".join(tokens)
+
 
 def clean_text(document):
     # Remove all the special characters
