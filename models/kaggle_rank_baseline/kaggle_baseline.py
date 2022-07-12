@@ -29,12 +29,13 @@ class MarkdownModel(nn.Module):
 
 
 class MarkdownDataset(Dataset):
-
     def __init__(self, df, max_len):
         super().__init__()
         self.df = df.reset_index(drop=True)
         self.max_len = max_len
-        self.tokenizer = DistilBertTokenizer.from_pretrained(BERT_PATH, do_lower_case=True)
+        self.tokenizer = DistilBertTokenizer.from_pretrained(
+            BERT_PATH, do_lower_case=True
+        )
 
     def __getitem__(self, index):
         row = self.df.iloc[index]
@@ -46,10 +47,10 @@ class MarkdownDataset(Dataset):
             max_length=self.max_len,
             padding="max_length",
             return_token_type_ids=True,
-            truncation=True
+            truncation=True,
         )
-        ids = torch.LongTensor(inputs['input_ids'])
-        mask = torch.LongTensor(inputs['attention_mask'])
+        ids = torch.LongTensor(inputs["input_ids"])
+        mask = torch.LongTensor(inputs["attention_mask"])
 
         return ids, mask, torch.FloatTensor([row.pct_rank])
 
@@ -68,13 +69,17 @@ def adjust_lr(optimizer, epoch):
         lr = 1e-5
 
     for p in optimizer.param_groups:
-        p['lr'] = lr
+        p["lr"] = lr
     return lr
 
 
 def get_optimizer(net):
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=3e-4, betas=(0.9, 0.999),
-                                 eps=1e-08)
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, net.parameters()),
+        lr=3e-4,
+        betas=(0.9, 0.999),
+        eps=1e-08,
+    )
     return optimizer
 
 
@@ -149,7 +154,9 @@ def run_baseline(train_path):
 
     splitter = GroupShuffleSplit(n_splits=1, test_size=NVALID, random_state=0)
     train_ind, val_ind = next(splitter.split(df, groups=df["ancestor_id"]))
-    train_df, val_df = df.loc[train_ind].reset_index(drop=True), df.loc[val_ind].reset_index(drop=True)
+    train_df, val_df = df.loc[train_ind].reset_index(drop=True), df.loc[
+        val_ind
+    ].reset_index(drop=True)
 
     train_df_mark = train_df[train_df["cell_type"] == "markdown"].reset_index(drop=True)
     val_df_mark = val_df[val_df["cell_type"] == "markdown"].reset_index(drop=True)
@@ -160,10 +167,22 @@ def run_baseline(train_path):
     BS = 32
     NW = 1
 
-    train_loader = DataLoader(train_ds, batch_size=BS, shuffle=True, num_workers=NW,
-                              pin_memory=False, drop_last=True)
-    val_loader = DataLoader(val_ds, batch_size=BS, shuffle=False, num_workers=NW,
-                            pin_memory=False, drop_last=False)
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=BS,
+        shuffle=True,
+        num_workers=NW,
+        pin_memory=False,
+        drop_last=True,
+    )
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=BS,
+        shuffle=False,
+        num_workers=NW,
+        pin_memory=False,
+        drop_last=False,
+    )
 
     model = MarkdownModel()
     model = model.cuda()
@@ -175,7 +194,7 @@ def run_baseline(train_path):
 if __name__ == "__main__":
     with open("paths.yaml", "r") as stream:
         try:
-            path = yaml.safe_load(stream)['train_path']
+            path = yaml.safe_load(stream)["train_path"]
         except yaml.YAMLError as exc:
             print(exc)
 

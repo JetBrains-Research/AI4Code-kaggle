@@ -6,7 +6,6 @@ import torch
 
 
 class OrderBuilder:
-
     @staticmethod
     def greedy_pairwise(probs: torch.Tensor, is_code):
         code_positions = np.where(is_code)[0]
@@ -40,7 +39,9 @@ class OrderBuilder:
 
     @staticmethod
     def kendall_tau(gt, pred):
-        ranks = [gt.index(x) for x in pred]  # rank predicted order in terms of ground truth
+        ranks = [
+            gt.index(x) for x in pred
+        ]  # rank predicted order in terms of ground truth
         inv = OrderBuilder._count_inversions(ranks)
         n = len(gt)
         max_inv = n * (n - 1)

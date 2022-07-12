@@ -54,14 +54,10 @@ class JupDataset(Dataset):
 
 
 def collate_fn(batch):
-    tokens = [{'input_ids': x} for x in batch]
-    res = tokenizer.pad(
-        tokens, return_attention_mask=True, return_tensors="pt"
-    )
-    return {
-        'input_ids': res['input_ids'],
-        'attention_mask': res['attention_mask']
-    }
+    tokens = [{"input_ids": x} for x in batch]
+    res = tokenizer.pad(tokens, return_attention_mask=True, return_tensors="pt")
+    return {"input_ids": res["input_ids"], "attention_mask": res["attention_mask"]}
+
 
 notebooks = df.id.unique()
 
@@ -76,10 +72,7 @@ with tqdm(notebooks) as pbar:
 
         dataset = JupDataset(cells)
         data_loader = DataLoader(
-            dataset,
-            batch_size=BATCH_SIZE,
-            pin_memory=True,
-            collate_fn=collate_fn
+            dataset, batch_size=BATCH_SIZE, pin_memory=True, collate_fn=collate_fn
         )
         all_preds = []
         for batch in data_loader:

@@ -4,13 +4,21 @@ from transformers import BertTokenizer
 
 
 class Dataset(torch.utils.data.Dataset):
-
     def __init__(self, df: pd.DataFrame):
-        tokenizer = BertTokenizer.from_pretrained('bert_classification-base-cased')
-        self.labels = [label for label in df[df['cell_type'] == 'markdown']['position_class']]
-        self.texts = [tokenizer(text,
-                                padding='max_length', max_length=512, truncation=True,
-                                return_tensors="pt") for text in df[df['cell_type'] == 'markdown']['clean_text']]
+        tokenizer = BertTokenizer.from_pretrained("bert_classification-base-cased")
+        self.labels = [
+            label for label in df[df["cell_type"] == "markdown"]["position_class"]
+        ]
+        self.texts = [
+            tokenizer(
+                text,
+                padding="max_length",
+                max_length=512,
+                truncation=True,
+                return_tensors="pt",
+            )
+            for text in df[df["cell_type"] == "markdown"]["clean_text"]
+        ]
 
     def classes(self):
         return self.labels

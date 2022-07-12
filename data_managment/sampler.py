@@ -12,13 +12,23 @@ tqdm.pandas()
 
 
 class Sampler:
-
-    def __init__(self, path, asymmetric=False, sample_method='harmonic', dist_processing='log', filtration='first_md',
-                 pair_filtration=('first_md', 'second_cd'),
-                 sample_size=0.1, debug=False, balance_classes=True):
+    def __init__(
+        self,
+        path,
+        asymmetric=False,
+        sample_method="harmonic",
+        dist_processing="log",
+        filtration="first_md",
+        pair_filtration=("first_md", "second_cd"),
+        sample_size=0.1,
+        debug=False,
+        balance_classes=True,
+    ):
 
         self.df = pd.read_feather(path)
-        self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")["cell_id"].transform("count")
+        self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")[
+            "cell_id"
+        ].transform("count")
 
         self.presampling(sample_size)
         self.rng = np.random.default_rng()
@@ -26,29 +36,31 @@ class Sampler:
         self.asymmetric = asymmetric
 
         self.classification_bins = (-np.inf, -5, -1, 1, 5, np.inf)
-        self.balance = balance_classes & (dist_processing in ['binary', 'multiclass'])
+        self.balance = balance_classes & (dist_processing in ["binary", "multiclass"])
         if balance_classes:
-            self.rs = RandomUnderSampler(sampling_strategy='not minority')
+            self.rs = RandomUnderSampler(sampling_strategy="not minority")
 
         self.mapping = defaultdict(self.def_mapping_value)
 
-        self.mapping.update({
-            'log': self.log_dist,
-            'binary': self.binary_dist,
-            'multiclass': self.multiclass_dist,
-            'normalised': self.normalised_dist,
-            'harmonic': self.harmonic_sampling,
-            'first_md': self.filter_markdown,
-            ('first_md', 'second_cd'): self.filter_markdown_code
-        })
+        self.mapping.update(
+            {
+                "log": self.log_dist,
+                "binary": self.binary_dist,
+                "multiclass": self.multiclass_dist,
+                "normalised": self.normalised_dist,
+                "harmonic": self.harmonic_sampling,
+                "first_md": self.filter_markdown,
+                ("first_md", "second_cd"): self.filter_markdown_code,
+            }
+        )
 
         self.sampling_method = self.mapping[sample_method]
         self.process_distance = self.mapping[dist_processing]
         self.filter = self.mapping[filtration]
 
-        sym = 'sym' if not asymmetric else 'asym'
-        balanced = 'bal' if balance_classes else 'non_bal'
-        self.name = f'{dist_processing}_{sym}_{filtration}_{balanced}_pairs.fth'
+        sym = "sym" if not asymmetric else "asym"
+        balanced = "bal" if balance_classes else "non_bal"
+        self.name = f"{dist_processing}_{sym}_{filtration}_{balanced}_pairs.fth"
 
         self.debug = debug
 
@@ -59,7 +71,7 @@ class Sampler:
 
     @staticmethod
     def def_mapping_value():
-        print('empty or non-existing preprocessing was entered')
+        print("empty or non-existing preprocessing was entered")
 
         def placeholder(sample, *args, **kwargs):
             return sample
@@ -74,19 +86,26 @@ class Sampler:
 
     @staticmethod
     def filter_markdown(full_sample, nb_df):
-        md_ids = nb_df.loc[nb_df.cell_type == 'markdown', 'rank']
+        md_ids = nb_df.loc[nb_df.cell_type == "markdown", "rank"]
         return full_sample[np.isin(full_sample[:, 0], md_ids.values)]
 
     @staticmethod
     def filter_markdown_code(full_sample, nb_df):
-        md_ids = nb_df.loc[nb_df.cell_type == 'markdown', 'rank']
-        cd_ids = nb_df.loc[nb_df.cell_type == 'code', 'rank']
-        return full_sample[(np.isin(full_sample[:, 0], md_ids.values)) & (np.isin(full_sample[:, 1], cd_ids.values))]
+        md_ids = nb_df.loc[nb_df.cell_type == "markdown", "rank"]
+        cd_ids = nb_df.loc[nb_df.cell_type == "code", "rank"]
+        return full_sample[
+            (np.isin(full_sample[:, 0], md_ids.values))
+            & (np.isin(full_sample[:, 1], cd_ids.values))
+        ]
 
     @staticmethod
     def build_pairwise_distance(nb_df):
-        rank_matrix = np.array(np.meshgrid(nb_df['rank'].values, nb_df['rank'].values)).T.reshape(-1, 2)
-        rank_matrix = np.append(rank_matrix, (rank_matrix[:, 1] - rank_matrix[:, 0]).reshape(-1, 1), axis=1)
+        rank_matrix = np.array(
+            np.meshgrid(nb_df["rank"].values, nb_df["rank"].values)
+        ).T.reshape(-1, 2)
+        rank_matrix = np.append(
+            rank_matrix, (rank_matrix[:, 1] - rank_matrix[:, 0]).reshape(-1, 1), axis=1
+        )
         # pairwise_dist = pd.DataFrame(rank_matrix, columns=['p1', 'p2', 'dist'])
         return rank_matrix
 
@@ -124,7 +143,9 @@ class Sampler:
         return np.digitize(distance, self.classification_bins)
 
     def balance_classes(self, sample):
-        sample, _ = self.rs.fit_resample(sample, sample[:, 2].astype(int).reshape(-1, 1))
+        sample, _ = self.rs.fit_resample(
+            sample, sample[:, 2].astype(int).reshape(-1, 1)
+        )
         return sample
 
     def sample_pairs(self, nb_df):
@@ -151,18 +172,22 @@ class Sampler:
 
     def sample_ranks(self, amount=None):
 
-        markdowns_subset = self.df[self.df['cell_type'] == 'markdown']
+        markdowns_subset = self.df[self.df["cell_type"] == "markdown"]
 
         if amount is None:
-            return markdowns_subset[['source', 'pct_rank', 'ancestor_id']]
+            return markdowns_subset[["source", "pct_rank", "ancestor_id"]]
 
         md_ids = np.random.choice(markdowns_subset.id, amount)
-        return markdowns_subset.loc[markdowns_subset.id.isin(md_ids), ['source', 'pct_rank', 'ancestor_id']]
+        return markdowns_subset.loc[
+            markdowns_subset.id.isin(md_ids), ["source", "pct_rank", "ancestor_id"]
+        ]
 
     def sample(self, save=True):
-        pairs_df = self.df.groupby('id').progress_apply(self.sample_pairs).explode()
+        pairs_df = self.df.groupby("id").progress_apply(self.sample_pairs).explode()
         pairs_df = pairs_df.dropna()
-        pairs_df = pd.DataFrame(pairs_df.to_list(), columns=['p1', 'p2', 'score'], index=pairs_df.index)
+        pairs_df = pd.DataFrame(
+            pairs_df.to_list(), columns=["p1", "p2", "score"], index=pairs_df.index
+        )
 
         if save:
             self.save_dataset(pairs_df.reset_index())
@@ -171,6 +196,6 @@ class Sampler:
 
     def save_dataset(self, pairs):
         today = date.today()
-        path = Path(f'data/{today}/')
+        path = Path(f"data/{today}/")
         path.mkdir(parents=True, exist_ok=True)
-        pairs.reset_index().to_feather(path / f'{self.name}')
+        pairs.reset_index().to_feather(path / f"{self.name}")
