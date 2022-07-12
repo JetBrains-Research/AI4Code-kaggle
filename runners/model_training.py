@@ -34,11 +34,16 @@ class PairwiseTrainingDataset(Dataset):
 
 
 class PairwiseTrainingDataModule(pl.LightningDataModule):
-    def __init__(self, train_dataset, val_datasets, batch_size, collate_fn):
+    def __init__(self, train_dataset, val_datasets, batch_size, collate_fn, val_batch_size=None):
         super().__init__()
         self.train_dataset = train_dataset
         self.val_datasets = val_datasets
+
         self.batch_size = batch_size
+        if val_batch_size is None:
+            val_batch_size = batch_size
+        self.val_batch_size = val_batch_size
+
         self.collate_fn = collate_fn
 
     def setup(self, stage=None):
@@ -57,7 +62,7 @@ class PairwiseTrainingDataModule(pl.LightningDataModule):
         return [
             DataLoader(
                 val_dataset,
-                batch_size=self.batch_size,
+                batch_size=self.val_batch_size,
                 pin_memory=True,
                 shuffle=False,
                 collate_fn=self.collate_fn,
@@ -75,6 +80,7 @@ class PairwiseKendallTauTrainer:
         model,
         max_p_length,
         batch_size,
+        val_batch_size=None
     ):
         self.df = self._load_df(path_to_train_df, tokenizer, max_p_length)
         self.val_dfs = [
@@ -88,6 +94,7 @@ class PairwiseKendallTauTrainer:
             self.val_datasets,
             batch_size,
             PairwiseTrainingDataset.get_collate_fn(tokenizer),
+            val_batch_size=val_batch_size
         )
 
         self.model = model
