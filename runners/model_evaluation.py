@@ -57,6 +57,9 @@ class PairwiseKendallTauEvaluator:
             self.notebooks = self.notebooks[:n]
 
     def evaluate(self, model, batch_size, device):
+        model.eval()
+        model.to(device)
+
         total_inv = 0
         total_max_inv = 0
         with tqdm(self.notebooks) as pbar:
