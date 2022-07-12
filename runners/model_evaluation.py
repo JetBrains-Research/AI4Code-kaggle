@@ -24,7 +24,7 @@ class PairwiseDataset(Dataset):
             + self.df.iloc[i]["text_tokenized"]
             + [self.tokenizer.sep_token_id]
             + self.df.iloc[j]["text_tokenized"]
-            + [self.tokenizer.sep_token_id],
+            + [self.tokenizer.sep_token_id]
         )
         return tokens
 
@@ -41,7 +41,7 @@ class PairwiseDataset(Dataset):
 
 class PairwiseKendallTauEvaluator:
 
-    def __init__(self, path_to_df, tokenizer, max_p_length):
+    def __init__(self, path_to_df, tokenizer, max_p_length, n=None):
         df = pd.read_feather(path_to_df)
         df["source"] = df["source"].apply(lambda s: kaggle_cleaning(s))
         df["text_tokenized"] = df["source"].apply(
@@ -51,6 +51,10 @@ class PairwiseKendallTauEvaluator:
         self.df = df
         self.tokenizer = tokenizer
         self.notebooks = df.id.unique()
+        self.notebooks.sort()
+
+        if n is not None:
+            self.notebooks = self.notebooks[:n]
 
     def evaluate(self, model, batch_size, device):
         total_inv = 0
