@@ -8,14 +8,15 @@ from imblearn.under_sampling import RandomUnderSampler
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 
-from features import FeaturesProcessor
+from .features import FeaturesProcessor
 
 tqdm.pandas()
 
 
 class Sampler:
-    def __init__(self, path, sample_size=0.1):
-        self.df = pd.read_feather(path)
+
+    def __init__(self, path_or_df, sample_size=0.1):
+        self.df = path_or_df if isinstance(path_or_df, pd.DataFrame) else pd.read_feather(path_or_df)
         self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")["cell_id"].transform("count")
         self.presampling(sample_size)
         self.name = ''
@@ -168,26 +169,26 @@ class PairwiseSampler(Sampler):
 
 
 class MDSampler(Sampler):
-    def __init__(self, path, sample_size):
-        super().__init__(path, sample_size)
+    def __init__(self, path_or_df, sample_size=0.1):
+        super().__init__(path_or_df, sample_size)
 
-    @staticmethod
-    def get_code_count(sub_df):
-        total_code = sub_df[sub_df.cell_type == "code"].shape[0]
-        return total_code
-
-    @staticmethod
-    def get_md_count(sub_df):
-        total_md = sub_df[sub_df.cell_type == "markdown"].shape[0]
-        return total_md
-
-    @staticmethod
-    def random_global_sample(sub_df, n=20):
-        code_df = sub_df[sub_df.cell_type == "code"]
-
-        n = 20
-        n = len(code_df) if n > len(code_df) else n
-        return ' '.join(code_df.source.sample(n).astype(str).tolist())
+    # @staticmethod
+    # def get_code_count(sub_df):
+    #     total_code = sub_df[sub_df.cell_type == "code"].shape[0]
+    #     return total_code
+    #
+    # @staticmethod
+    # def get_md_count(sub_df):
+    #     total_md = sub_df[sub_df.cell_type == "markdown"].shape[0]
+    #     return total_md
+    #
+    # @staticmethod
+    # def random_global_sample(sub_df, n=20):
+    #     code_df = sub_df[sub_df.cell_type == "code"]
+    #
+    #     n = 20
+    #     n = len(code_df) if n > len(code_df) else n
+    #     return ' '.join(code_df.source.sample(n).astype(str).tolist())
 
     @staticmethod
     def calculate_features(grouped_df, feature_list, processor):
@@ -208,10 +209,12 @@ class MDSampler(Sampler):
                                                  feature_list=feature_list,
                                                  processor=processor)
 
-        markdowns_subset = self.df.merge(feature_df, left_on='id', right_index=True)
-        markdowns_subset = markdowns_subset[markdowns_subset == 'markdown', base_features]
-
         if save:
+            markdowns_subset = self.df.merge(feature_df, left_on='id', right_index=True)
+            markdowns_subset = markdowns_subset.loc[markdowns_subset == 'markdown', base_features]
+
             self.save_dataset(markdowns_subset.reset_index())
 
-        return markdowns_subset
+            return markdowns_subset
+
+        return self.df, feature_df
