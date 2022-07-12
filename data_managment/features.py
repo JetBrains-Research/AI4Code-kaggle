@@ -27,6 +27,7 @@ class FeaturesProcessor:
             'normalized_defined_functions': lambda x: (len(self._get_defined_functions(x))
                                                        / self.group_params['code_count']),
             'normalized_sloc': self._get_normalized_sloc,
+            'code_subsample': self._get_code_subsample,
         }
 
     def process(self, grouped_df, input_features):
@@ -65,6 +66,13 @@ class FeaturesProcessor:
 
         functions = self._get_functions_by_code(source_code)
         return len(functions) / self.group_params['code_count']
+
+    @staticmethod
+    def _get_code_subsample(group, n=20, seed=42):
+        code_df = group[group.cell_type == "code"]
+
+        n = len(code_df) if n > len(code_df) else n
+        return ' '.join(code_df.source.sample(n, random_state=seed).astype(str).tolist())
 
     @staticmethod
     def _get_functions_by_code(source):

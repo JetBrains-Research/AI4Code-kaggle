@@ -198,7 +198,7 @@ class MDSampler(Sampler):
             self,
             feature_list=('md_count', 'code_count', 'defined_functions',
                           'normalized_plot_functions', 'normalized_defined_functions',
-                          'normalized_sloc'),
+                          'normalized_sloc', 'code_subsample'),
             save=True
     ):
         base_features = ['id', 'cell_id', 'source', 'pct_rank', 'ancestor_id']
