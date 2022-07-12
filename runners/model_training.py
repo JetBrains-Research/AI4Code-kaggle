@@ -71,12 +71,10 @@ class PairwiseKendallTauTrainer:
         self,
         path_to_train_df,
         paths_to_val_df,
-        path_to_pairwise_evaluation_df,
         tokenizer,
         model,
         max_p_length,
         batch_size,
-        n=None,
     ):
         self.df = self._load_df(path_to_train_df, tokenizer, max_p_length)
         self.val_dfs = [
@@ -92,9 +90,6 @@ class PairwiseKendallTauTrainer:
             PairwiseTrainingDataset.get_collate_fn(tokenizer),
         )
 
-        self.evaluator = PairwiseKendallTauEvaluator(
-            path_to_pairwise_evaluation_df, tokenizer, max_p_length, n=n
-        )
         self.model = model
 
     def train(self, **trainer_config):

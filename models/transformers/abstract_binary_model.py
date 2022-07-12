@@ -7,8 +7,9 @@ from .utils import extract_value
 
 
 class AbstractBinaryModel(pl.LightningModule, ABC):
-    def __init__(self):
+    def __init__(self, evaluator=None):
         super(AbstractBinaryModel, self).__init__()
+        self.evaluator = evaluator
         self.loss_function = torch.nn.CrossEntropyLoss()
 
     def _calculate_major_class(self, x, process_stage):
@@ -32,11 +33,15 @@ class AbstractBinaryModel(pl.LightningModule, ABC):
     def training_epoch_end(self, outputs):
         self._shared_epoch_end(outputs, "train")
 
-    def validation_step(self, batch, batch_idx):
-        return self._shared_step(batch, batch_idx, "val")
+    def validation_step(self, batch, batch_idx, dataloader_idx):
+        return self._shared_step(batch, batch_idx, f"val_{dataloader_idx}")
 
     def validation_epoch_end(self, outputs):
-        self._shared_epoch_end(outputs, "val")
+        for idx, val_outputs in enumerate(outputs):
+            self._shared_epoch_end(val_outputs, f"val_{idx}")
+        if self.evaluator is not None:
+            kendall_tau = self.evaluator(self, self.trainer.val_dataloaders[0].batch_size, self.device)
+            self.log("val/kendall_tau", kendall_tau)
 
     @staticmethod
     def _compute_metrics(preds, batch, stage):
