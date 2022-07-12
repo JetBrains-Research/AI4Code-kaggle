@@ -5,8 +5,8 @@ from .abstract_binary_model import AbstractBinaryModel
 
 
 class AutoBinaryModel(AbstractBinaryModel):
-    def __init__(self, model_name):
-        super(AutoBinaryModel, self).__init__()
+    def __init__(self, model_name, evaluator=None):
+        super(AutoBinaryModel, self).__init__(evaluator)
         self.model = AutoModelForSequenceClassification.from_pretrained(
             model_name, num_labels=2
         )
