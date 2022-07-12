@@ -72,7 +72,7 @@ class FeaturesProcessor:
         code_df = group[group.cell_type == "code"]
 
         n = len(code_df) if n > len(code_df) else n
-        return ' '.join(code_df.source.sample(n, random_state=seed).astype(str).tolist())
+        return '<lop>'.join(code_df.source.sample(n, random_state=seed).astype(str).tolist())
 
     @staticmethod
     def _get_functions_by_code(source):

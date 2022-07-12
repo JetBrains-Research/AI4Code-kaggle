@@ -1,8 +1,10 @@
+import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 from datasets import Dataset
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 from transformers import DistilBertTokenizer
 
 from data_managment.samplers import MDSampler
@@ -26,10 +28,17 @@ class MarkdownDataModule(pl.LightningDataModule):
 
         self.train_dataset, self.val_dataset, self.test_dataset = train_dat, val_dat, test_dat
 
+    def presampling(self, df, ):
+        nb_ids = df.id.unique()
+        amount = self.sample_size if self.sample_size > 1 else round(len(nb_ids) * self.sample_size)
+        sample_ids = np.random.choice(nb_ids, amount)
+        df = df.loc[df.id.isin(sample_ids), :]
+        return df
+
     def _read_train_dataset(self):
 
         df = pd.read_feather(self.train_path)
-        df = df.sample(self.sample_size)
+        df = self.presampling(df)
 
         if self.resample:
             sampler = MDSampler(df, sample_size=1)
@@ -52,6 +61,57 @@ class MarkdownDataModule(pl.LightningDataModule):
         test_dataset = Dataset.from_pandas(df)
         return test_dataset
 
+    def tokenize_subsample(self, dataset):
+
+        def flatten_list(hlist):
+            return [l for sublist in hlist for l in sublist[1:]]
+
+        def padding_to_max(ids, max_len=20 * 22):
+            to_pad = max_len - len(ids)
+            ids.extend(to_pad * [0])
+            return ids
+
+        def concat_features(example):
+            example['input_ids'] = example['input_ids'] + example['ftr_input_ids']
+            example['attention_mask'] = example['attention_mask'] + example['ftr_attention_mask']
+            return example
+
+        df = dataset.to_pandas()
+        mapping = df[['id', 'code_subsample']].drop_duplicates()
+        code_subsample = mapping['code_subsample'].tolist()
+
+        code_subsample = [subsample.split('<lop>') for subsample in code_subsample]
+
+        tokenized_code_subsample_ids = []
+        tokenized_code_subsample_masks = []
+
+        for subsample in tqdm(code_subsample):
+            tokenized = self.tokenizer(subsample,
+                                       add_special_tokens=True,
+                                       max_length=23,
+                                       padding=False,
+                                       truncation=True)
+
+            tokenized['input_ids'] = flatten_list(tokenized['input_ids'])
+            tokenized['attention_mask'] = flatten_list(tokenized['attention_mask'])
+
+            tokenized['input_ids'] = padding_to_max(tokenized['input_ids'])
+            tokenized['attention_mask'] = padding_to_max(tokenized['attention_mask'])
+
+            tokenized_code_subsample_ids.append(tokenized['input_ids'])
+            tokenized_code_subsample_masks.append(tokenized['attention_mask'])
+
+        mapping['ftr_input_ids'] = tokenized_code_subsample_ids
+        mapping['ftr_attention_mask'] = tokenized_code_subsample_masks
+
+        df = df.merge(mapping[['id', 'ftr_input_ids', 'ftr_attention_mask']], on='id', how='left')
+        df = df.drop(columns=['__index_level_0__'])
+
+        dataset = Dataset.from_pandas(df)
+        dataset = dataset.map(concat_features)
+
+        return dataset
+
     def _preprocess_dataset(self, dataset):
 
         def process_batch(batch):
@@ -68,7 +128,9 @@ class MarkdownDataModule(pl.LightningDataModule):
             batched=True, batch_size=self.batch_size,
         )
 
-        dataset.set_format('pt', ['input_ids', 'attention_mask', 'md_count', 'code_count', 'defined_functions',
+        dataset = self.tokenize_subsample(dataset)
+
+        dataset.set_format('pt', ['input_ids', 'attention_mask', 'md_count', 'code_count',
                                   'normalized_plot_functions', 'normalized_defined_functions',
                                   'normalized_sloc', 'score'])
 
