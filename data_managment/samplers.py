@@ -1,9 +1,6 @@
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
-import tokenize
-import io
-import re
 
 import numpy as np
 import pandas as pd
@@ -28,11 +25,6 @@ class Sampler:
         amount = sample_size if sample_size > 1 else round(len(nb_ids) * sample_size)
         sample_ids = np.random.choice(nb_ids, amount)
         self.df = self.df.loc[self.df.id.isin(sample_ids), :]
-
-    def sample_notebook(self, nb_id=None):
-        rand_id = nb_id if nb_id else self.df.id.sample(1).values[0]
-        nb_df = self.df.loc[self.df.id == rand_id, :]
-        return nb_df
 
     def save_dataset(self, dataset):
         today = date.today()
