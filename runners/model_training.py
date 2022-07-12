@@ -20,13 +20,10 @@ class PairwiseTrainingDataset(Dataset):
 
     @staticmethod
     def get_collate_fn(tokenizer):
-
         def collate_fn(batch):
             tokens = [{"input_ids": x[0]} for x in batch]
             scores = torch.LongTensor([x[1] for x in batch]).view(-1, 1)
-            res = tokenizer.pad(
-                tokens, return_attention_mask=True, return_tensors="pt"
-            )
+            res = tokenizer.pad(tokens, return_attention_mask=True, return_tensors="pt")
             return {
                 "score": scores,
                 "input_ids": res["input_ids"],
@@ -92,7 +89,7 @@ class PairwiseKendallTauTrainer:
             self.training_dataset,
             self.val_datasets,
             batch_size,
-            PairwiseTrainingDataset.get_collate_fn(tokenizer)
+            PairwiseTrainingDataset.get_collate_fn(tokenizer),
         )
 
         self.evaluator = PairwiseKendallTauEvaluator(
@@ -102,10 +99,7 @@ class PairwiseKendallTauTrainer:
 
     def train(self, **trainer_config):
         wandb_logger = WandbLogger(project="JupyterBert", entity="jbr_jupyter")
-        trainer = pl.Trainer(
-            logger=wandb_logger,
-            **trainer_config
-        )
+        trainer = pl.Trainer(logger=wandb_logger, **trainer_config)
         trainer.fit(self.model, self.data_module)
 
     def _load_df(self, path_to_df, tokenizer, max_p_length):
