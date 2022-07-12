@@ -1,6 +1,6 @@
-import tokenize
 import io
 import re
+import tokenize
 
 import pandas as pd
 
@@ -23,6 +23,7 @@ class FeaturesProcessor:
             'code_count': lambda x: self.group_params['code_count'],
             'defined_functions': self._get_defined_functions,
             'normalized_plot_functions': self._get_normalized_plot_functions,
+            # normal fix for zero code cells
             'normalized_defined_functions': lambda x: (len(self._get_defined_functions(x))
                                                        / self.group_params['code_count']),
             'normalized_sloc': self._get_normalized_sloc,
@@ -40,8 +41,8 @@ class FeaturesProcessor:
     @staticmethod
     def _preprocess_group(group) -> dict:
         types_count = group.cell_type.value_counts()
-        total_md = types_count.markdown
-        total_code = types_count.code
+        total_md = types_count.markdown if 'markdown' in types_count else 0
+        total_code = types_count.code if 'code' in types_count else 1
         code_sub_df = group[group.cell_type == "code"]
         source_code = '\n'.join(code_sub_df.source)
 

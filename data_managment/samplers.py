@@ -201,7 +201,7 @@ class MDSampler(Sampler):
                           'normalized_sloc'),
             save=True
     ):
-        base_features = ['source', 'pct_rank', 'ancestor_id']
+        base_features = ['id', 'cell_id', 'source', 'pct_rank', 'ancestor_id']
         base_features.extend(feature_list)
 
         processor = FeaturesProcessor()
@@ -209,12 +209,10 @@ class MDSampler(Sampler):
                                                  feature_list=feature_list,
                                                  processor=processor)
 
-        if save:
-            markdowns_subset = self.df.merge(feature_df, left_on='id', right_index=True)
-            markdowns_subset = markdowns_subset.loc[markdowns_subset == 'markdown', base_features]
+        markdowns_subset = self.df.merge(feature_df, left_on='id', right_index=True)
+        # markdowns_subset = markdowns_subset.loc[markdowns_subset.cell_type == 'markdown', base_features]
+        #
+        # if save:
+        #     self.save_dataset(markdowns_subset.reset_index())
 
-            self.save_dataset(markdowns_subset.reset_index())
-
-            return markdowns_subset
-
-        return self.df, feature_df
+        return markdowns_subset
