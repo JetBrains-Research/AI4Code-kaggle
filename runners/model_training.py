@@ -5,7 +5,9 @@ from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 
 from data_managment.preprocessing import kaggle_cleaning
-from .model_evaluation import PairwiseKendallTauEvaluator
+from tqdm import tqdm
+
+tqdm.pandas()
 
 
 class PairwiseTrainingDataset(Dataset):
@@ -105,16 +107,23 @@ class PairwiseKendallTauTrainer:
         trainer.fit(self.model, self.data_module)
 
     def _load_df(self, path_to_df, tokenizer, max_p_length):
+        print("Loading dataset...")
         df = pd.read_feather(path_to_df)
-        df["p1"] = df["p1"].apply(lambda s: kaggle_cleaning(s))
-        df["p2"] = df["p2"].apply(lambda s: kaggle_cleaning(s))
-        df["p1_tokenized"] = df["p1"].apply(
+
+        print("Cleaning...")
+        df["p1"] = df["p1"].progress_apply(lambda s: kaggle_cleaning(s))
+        df["p2"] = df["p2"].progress_apply(lambda s: kaggle_cleaning(s))
+
+        print("Tokenizing...")
+        df["p1_tokenized"] = df["p1"].progress_apply(
             lambda s: tokenizer(s, add_special_tokens=False)["input_ids"][:max_p_length]
         )
-        df["p2_tokenized"] = df["p2"].apply(
+        df["p2_tokenized"] = df["p2"].progress_apply(
             lambda s: tokenizer(s, add_special_tokens=False)["input_ids"][:max_p_length]
         )
-        df["tokenized"] = df.apply(
+
+        print("Merging pairs...")
+        df["tokenized"] = df.progress_apply(
             lambda row: [tokenizer.cls_token_id]
             + row["p1_tokenized"]
             + [tokenizer.sep_token_id]
