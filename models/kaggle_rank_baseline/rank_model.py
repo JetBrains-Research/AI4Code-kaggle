@@ -12,7 +12,7 @@ class MarkdownModelPl(pl.LightningModule):
         self.loss = torch.nn.MSELoss()
         self.activation = torch.nn.LeakyReLU()
 
-    def forward(self, input_ids, attention_mask, score):
+    def forward(self, input_ids, attention_mask, score, **kwargs):
         embeddings = self.distill_bert(input_ids, attention_mask)['last_hidden_state']
         embeddings = self.activation(embeddings)
         preds = self.dense(embeddings[:, 0, :])  # why are you taking embeding of first token, maybe mean?
@@ -23,7 +23,7 @@ class MarkdownModelPl(pl.LightningModule):
         preds = self.forward(**batch).reshape(-1)
         loss = self.loss(preds, batch['score'])
         self.log('train_batch_loss', loss)
-        self.log('train_RMSE', 1)
+#         self.log('train_RMSE', 1)
 
         return loss
 
@@ -36,7 +36,11 @@ class MarkdownModelPl(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.AdamW(
             filter(lambda p: p.requires_grad, self.parameters()),
-            lr=3e-4, betas=(0.9, 0.999), eps=1e-08)
+            lr=1e-5, 
+            betas=(0.9, 0.999), 
+            eps=1e-08,
+            weight_decay=0.00
+        )
         return optimizer

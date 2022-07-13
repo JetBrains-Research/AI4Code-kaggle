@@ -66,7 +66,8 @@ class MarkdownDataModule(pl.LightningDataModule):
         def flatten_list(hlist):
             return [l for sublist in hlist for l in sublist[1:]]
 
-        def padding_to_max(ids, max_len=20 * 22):
+#         def padding_to_max(ids, max_len=20 * 22):
+        def padding_to_max(ids, max_len=20 * 19):
             to_pad = max_len - len(ids)
             ids.extend(to_pad * [0])
             return ids
@@ -88,7 +89,7 @@ class MarkdownDataModule(pl.LightningDataModule):
         for subsample in tqdm(code_subsample):
             tokenized = self.tokenizer(subsample,
                                        add_special_tokens=True,
-                                       max_length=23,
+                                       max_length=20,
                                        padding=False,
                                        truncation=True)
 
@@ -160,8 +161,8 @@ class MarkdownDataModule(pl.LightningDataModule):
         self.train_dataset = self._preprocess_dataset(train)
         print('preparing validation data')
         self.val_dataset = self._preprocess_dataset(val)
-        print('preparing test data')
-        self.test_dataset = self._preprocess_dataset(test)
+#         print('preparing test data')
+#         self.test_dataset = self._preprocess_dataset(test)
 
     # def setup(self, stage=None):
     #     if stage == 'fit' or stage is None:
