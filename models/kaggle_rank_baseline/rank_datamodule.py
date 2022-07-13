@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 from datasets import Dataset
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GroupShuffleSplit
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import DistilBertTokenizer
@@ -106,7 +106,9 @@ class MarkdownDataModule(pl.LightningDataModule):
         mapping['ftr_attention_mask'] = tokenized_code_subsample_masks
 
         df = df.merge(mapping[['id', 'ftr_input_ids', 'ftr_attention_mask']], on='id', how='left')
-        df = df.drop(columns=['__index_level_0__'])
+        
+        if '__index_level_0__' in df.columns:
+            df = df.drop(columns=['__index_level_0__'])
 
         dataset = Dataset.from_pandas(df)
         dataset = dataset.map(concat_features)
@@ -130,24 +132,26 @@ class MarkdownDataModule(pl.LightningDataModule):
         )
 
         dataset = self.tokenize_subsample(dataset)
-
-        dataset.set_format('pt', ['input_ids', 'attention_mask', 'md_count', 'code_count',
-                                  'normalized_plot_functions', 'normalized_defined_functions',
-                                  'normalized_sloc', 'score'])
+        
+        cols_to_keep =  [
+            'input_ids', 'attention_mask', 'md_count', 'code_count',
+            'normalized_plot_functions', 'normalized_defined_functions',
+            'normalized_sloc', 'score'
+        ]
+        dataset.set_format('pt', cols_to_keep, output_all_columns=True)
+        dataset = dataset.rename_column('id', 'notebook_id')
+        cols_to_keep.append('notebook_id')
+        dataset = dataset.remove_columns([col for col in dataset.column_names if col not in cols_to_keep])
 
         return dataset
 
     def _split_if_ancestors(self, df):
-        #
-        # if 'ancestor_id' in df.columns:
-        #
-        #     splitter = GroupShuffleSplit(n_splits=1, test_size=self.validation_size, random_state=0)
-        #     train_ind, val_ind = next(splitter.split(df, groups=df["ancestor_id"]))
-        #     train_df, val_df = df.loc[train_ind].reset_index(drop=True), df.loc[val_ind].reset_index(drop=True)
-        #
-        # else:
-
-        train_df, val_df = train_test_split(df, test_size=0.1)
+        if 'ancestor_id' in df.columns:
+            splitter = GroupShuffleSplit(n_splits=1, test_size=self.validation_size, random_state=0)
+            train_ind, val_ind = next(splitter.split(df, groups=df["ancestor_id"]))
+            train_df, val_df = df.iloc[train_ind].reset_index(drop=True), df.iloc[val_ind].reset_index(drop=True)
+        else:
+            train_df, val_df = train_test_split(df, test_size=0.1)
 
         return train_df, val_df
 
