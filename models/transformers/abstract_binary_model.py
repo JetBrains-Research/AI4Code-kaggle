@@ -40,7 +40,7 @@ class AbstractBinaryModel(pl.LightningModule, ABC):
         for idx, val_outputs in enumerate(outputs):
             self._shared_epoch_end(val_outputs, f"val_{idx}")
         if self.evaluator is not None:
-            kendall_tau = self.evaluator(self, self.trainer.val_dataloaders[0].batch_size, self.device)
+            kendall_tau = self.evaluator.evaluate(self, self.trainer.val_dataloaders[0].batch_size, self.device)
             self.log("val/kendall_tau", kendall_tau)
 
     @staticmethod

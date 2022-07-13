@@ -3,6 +3,7 @@ import torch
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
+import dask.dataframe as dd
 
 from data_managment.preprocessing import kaggle_cleaning
 from tqdm import tqdm
@@ -58,6 +59,7 @@ class PairwiseTrainingDataModule(pl.LightningDataModule):
             pin_memory=True,
             shuffle=True,
             collate_fn=self.collate_fn,
+            num_workers=24,
         )
 
     def val_dataloader(self):
@@ -68,6 +70,7 @@ class PairwiseTrainingDataModule(pl.LightningDataModule):
                 pin_memory=True,
                 shuffle=False,
                 collate_fn=self.collate_fn,
+                num_workers=24,
             )
             for val_dataset in self.val_datasets
         ]
@@ -82,7 +85,8 @@ class PairwiseKendallTauTrainer:
         model,
         max_p_length,
         batch_size,
-        val_batch_size=None
+        val_batch_size=None,
+        precomputed=True
     ):
         self.df = self._load_df(path_to_train_df, tokenizer, max_p_length)
         self.val_dfs = [
@@ -100,6 +104,8 @@ class PairwiseKendallTauTrainer:
         )
 
         self.model = model
+        
+        self.precomputed = precomputed
 
     def train(self, **trainer_config):
         wandb_logger = WandbLogger(project="JupyterBert", entity="jbr_jupyter")
@@ -107,28 +113,32 @@ class PairwiseKendallTauTrainer:
         trainer.fit(self.model, self.data_module)
 
     def _load_df(self, path_to_df, tokenizer, max_p_length):
-        print("Loading dataset...")
         df = pd.read_feather(path_to_df)
+        
+        if self.precomputed:
+            return df
+        
+        ddf = dd.from_pandas(df, npartitions=100)
 
-        print("Cleaning...")
-        df["p1"] = df["p1"].progress_apply(lambda s: kaggle_cleaning(s))
-        df["p2"] = df["p2"].progress_apply(lambda s: kaggle_cleaning(s))
+        ddf["p1"] = ddf["p1"].apply(lambda s: kaggle_cleaning(s), meta=('p1', 'object'))
+        ddf["p2"] = ddf["p2"].apply(lambda s: kaggle_cleaning(s), meta=('p2', 'object'))
 
-        print("Tokenizing...")
-        df["p1_tokenized"] = df["p1"].progress_apply(
-            lambda s: tokenizer(s, add_special_tokens=False)["input_ids"][:max_p_length]
+        ddf["p1_tokenized"] = ddf["p1"].apply(
+            lambda s: tokenizer(s, add_special_tokens=False)["input_ids"][:max_p_length],
+            meta=('p1_tokenized', 'object')
         )
-        df["p2_tokenized"] = df["p2"].progress_apply(
-            lambda s: tokenizer(s, add_special_tokens=False)["input_ids"][:max_p_length]
+        ddf["p2_tokenized"] = ddf["p2"].apply(
+            lambda s: tokenizer(s, add_special_tokens=False)["input_ids"][:max_p_length],
+            meta=('p1_tokenized', 'object')
         )
 
-        print("Merging pairs...")
-        df["tokenized"] = df.progress_apply(
+        ddf["tokenized"] = ddf.apply(
             lambda row: [tokenizer.cls_token_id]
             + row["p1_tokenized"]
             + [tokenizer.sep_token_id]
             + row["p2_tokenized"]
             + [tokenizer.sep_token_id],
             axis=1,
+            meta=('tokenized', 'object')
         )
-        return df
+        return ddf.compute()
