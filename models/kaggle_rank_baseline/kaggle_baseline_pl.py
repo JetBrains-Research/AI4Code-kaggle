@@ -34,7 +34,10 @@ class MarkdownModelPl(LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad, self.parameters()),
-            lr=3e-4, betas=(0.9, 0.999), eps=1e-08)
+            lr=3e-4,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+        )
         return optimizer
 
     @staticmethod
@@ -43,9 +46,7 @@ class MarkdownModelPl(LightningModule):
 
 
 class MarkdownDataModule(pl.LightningDataModule):
-    def __init__(
-            self, train_path: str, batch_size: int = 32
-    ):
+    def __init__(self, train_path: str, batch_size: int = 32):
         super().__init__()
 
         self.train_path = train_path
@@ -54,30 +55,38 @@ class MarkdownDataModule(pl.LightningDataModule):
         self.train_dataset, self.val_dataset = None, None
 
     def setup(self, stage=None):
-        if stage == 'fit' or stage is None:
+        if stage == "fit" or stage is None:
             self._prepare_dataset()
 
-        if stage == 'test' or stage is None:
+        if stage == "test" or stage is None:
             pass
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset,
-                          batch_size=self.batch_size, num_workers=1,
-                          pin_memory=True, shuffle=True)
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            num_workers=1,
+            pin_memory=True,
+            shuffle=True,
+        )
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset,
-                          batch_size=self.batch_size, num_workers=1,
-                          pin_memory=True)
+        return DataLoader(
+            self.val_dataset, batch_size=self.batch_size, num_workers=1, pin_memory=True
+        )
 
     def _prepare_dataset(self):
         df = pd.read_feather(self.train_path)
 
         splitter = GroupShuffleSplit(n_splits=1, test_size=NVALID, random_state=0)
         train_ind, val_ind = next(splitter.split(df, groups=df["ancestor_id"]))
-        train_df, val_df = df.loc[train_ind].reset_index(drop=True), df.loc[val_ind].reset_index(drop=True)
+        train_df, val_df = df.loc[train_ind].reset_index(drop=True), df.loc[
+            val_ind
+        ].reset_index(drop=True)
 
-        train_df_mark = train_df[train_df["cell_type"] == "markdown"].reset_index(drop=True)
+        train_df_mark = train_df[train_df["cell_type"] == "markdown"].reset_index(
+            drop=True
+        )
         val_df_mark = val_df[val_df["cell_type"] == "markdown"].reset_index(drop=True)
 
         train_ds = MarkdownDataset(train_df_mark, max_len=MAX_LEN)
@@ -91,7 +100,9 @@ class MarkdownDataset(Dataset):
         super().__init__()
         self.df = df.reset_index(drop=True)
         self.max_len = max_len
-        self.tokenizer = DistilBertTokenizer.from_pretrained(BERT_PATH, do_lower_case=True)
+        self.tokenizer = DistilBertTokenizer.from_pretrained(
+            BERT_PATH, do_lower_case=True
+        )
 
     def __getitem__(self, index):
         row = self.df.iloc[index]
@@ -103,10 +114,10 @@ class MarkdownDataset(Dataset):
             max_length=self.max_len,
             padding="max_length",
             return_token_type_ids=True,
-            truncation=True
+            truncation=True,
         )
-        ids = torch.LongTensor(inputs['input_ids'])
-        mask = torch.LongTensor(inputs['attention_mask'])
+        ids = torch.LongTensor(inputs["input_ids"])
+        mask = torch.LongTensor(inputs["attention_mask"])
 
         return ids, mask, torch.FloatTensor([row.pct_rank])
 
@@ -126,7 +137,7 @@ def run_baseline(train_path):
 if __name__ == "__main__":
     with open("paths.yaml", "r") as stream:
         try:
-            path = yaml.safe_load(stream)['train_path']
+            path = yaml.safe_load(stream)["train_path"]
         except yaml.YAMLError as exc:
             print(exc)
 

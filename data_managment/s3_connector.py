@@ -7,13 +7,17 @@ from botocore.exceptions import ClientError
 from tqdm import tqdm
 
 
-def upload_dataset_version(path='data/', date='2022-06-30', aws_secret_path='s3_secret.json',
-                           bucket='datasets.ml.labs.aws.intellij.net'):
+def upload_dataset_version(
+    path="data/",
+    date="2022-06-30",
+    aws_secret_path="s3_secret.json",
+    bucket="datasets.ml.labs.aws.intellij.net",
+):
     client, resource = aws_connect(aws_secret_path)
-    data_files = os.listdir(f'{path}/{date}')
+    data_files = os.listdir(f"{path}/{date}")
     for data_file in tqdm(data_files):
-        obj = f'jupyter-kaggle/{date}/{data_file}'
-        file = f'{path}/{date}/{data_file}'
+        obj = f"jupyter-kaggle/{date}/{data_file}"
+        file = f"{path}/{date}/{data_file}"
         upload_file(client, file, bucket, obj)
 
 
@@ -35,15 +39,19 @@ def upload_file(client, file_name, bucket, object_name):
     return True
 
 
-def download_dataset_version(date, dataset='jupyter-kaggle', path_to_secret='s3_secret.json',
-                             bucketName='datasets.ml.labs.aws.intellij.net'):
+def download_dataset_version(
+    date,
+    dataset="jupyter-kaggle",
+    path_to_secret="s3_secret.json",
+    bucketName="datasets.ml.labs.aws.intellij.net",
+):
     client, resource = aws_connect(path_to_secret)
 
-    if not os.path.exists(f'data/{date}'):
-        os.makedirs(f'data/{date}')
+    if not os.path.exists(f"data/{date}"):
+        os.makedirs(f"data/{date}")
 
     bucket = resource.Bucket(bucketName)
-    for obj in tqdm(bucket.objects.filter(Prefix=f'{dataset}/{date}')):
+    for obj in tqdm(bucket.objects.filter(Prefix=f"{dataset}/{date}")):
         if not os.path.exists(f"data/{date}/{obj.key.split('/')[-1]}"):
             bucket.download_file(obj.key, f"data/{date}/{obj.key.split('/')[-1]}")
 
@@ -53,17 +61,17 @@ def aws_connect(path):
         key = json.load(file)
 
     client = boto3.client(
-        's3',
-        aws_access_key_id=key['aws_key_id'],
-        aws_secret_access_key=key['aws_key'],
-        region_name=key['region']
+        "s3",
+        aws_access_key_id=key["aws_key_id"],
+        aws_secret_access_key=key["aws_key"],
+        region_name=key["region"],
     )
 
     resource = boto3.resource(
-        's3',
-        aws_access_key_id=key['aws_key_id'],
-        aws_secret_access_key=key['aws_key'],
-        region_name=key['region']
+        "s3",
+        aws_access_key_id=key["aws_key_id"],
+        aws_secret_access_key=key["aws_key"],
+        region_name=key["region"],
     )
 
     return client, resource

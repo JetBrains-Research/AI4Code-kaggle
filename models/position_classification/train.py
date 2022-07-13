@@ -26,49 +26,50 @@ def train(model, train_dataloader, val_dataloader, learning_rate, epochs):
 
     for epoch_num in range(epochs):
 
-            total_acc_train = 0
-            total_loss_train = 0
+        total_acc_train = 0
+        total_loss_train = 0
 
-            for train_input, train_label in tqdm(train_dataloader):
+        for train_input, train_label in tqdm(train_dataloader):
 
-                train_label = train_label.to(device)
-                mask = train_input['attention_mask'].to(device)
-                input_id = train_input['input_ids'].squeeze(1).to(device)
+            train_label = train_label.to(device)
+            mask = train_input["attention_mask"].to(device)
+            input_id = train_input["input_ids"].squeeze(1).to(device)
+
+            output = model(input_id, mask)
+
+            batch_loss = criterion(output, train_label.long())
+            total_loss_train += batch_loss.item()
+            acc = (output.argmax(dim=1) == train_label).sum().item()
+            total_acc_train += acc
+
+            model.zero_grad()
+            batch_loss.backward()
+            optimizer.step()
+
+        total_acc_val = 0
+        total_loss_val = 0
+
+        with torch.no_grad():
+
+            for val_input, val_label in val_dataloader:
+                val_label = val_label.to(device)
+                mask = val_input["attention_mask"].to(device)
+                input_id = val_input["input_ids"].squeeze(1).to(device)
 
                 output = model(input_id, mask)
 
-                batch_loss = criterion(output, train_label.long())
-                total_loss_train += batch_loss.item()
-                acc = (output.argmax(dim=1) == train_label).sum().item()
-                total_acc_train += acc
+                batch_loss = criterion(output, val_label.long())
+                total_loss_val += batch_loss.item()
 
-                model.zero_grad()
-                batch_loss.backward()
-                optimizer.step()
+                acc = (output.argmax(dim=1) == val_label).sum().item()
+                total_acc_val += acc
 
-            total_acc_val = 0
-            total_loss_val = 0
-
-            with torch.no_grad():
-
-                for val_input, val_label in val_dataloader:
-                    val_label = val_label.to(device)
-                    mask = val_input['attention_mask'].to(device)
-                    input_id = val_input['input_ids'].squeeze(1).to(device)
-
-                    output = model(input_id, mask)
-
-                    batch_loss = criterion(output, val_label.long())
-                    total_loss_val += batch_loss.item()
-
-                    acc = (output.argmax(dim=1) == val_label).sum().item()
-                    total_acc_val += acc
-
-            print(
-                f'Epochs: {epoch_num + 1} | Train Loss: {total_loss_train / len(train_dataloader): .3f} \
+        print(
+            f"Epochs: {epoch_num + 1} | Train Loss: {total_loss_train / len(train_dataloader): .3f} \
                 | Train Accuracy: {total_acc_train / len(train_dataloader): .3f} \
                 | Val Loss: {total_loss_val / len(val_dataloader): .3f} \
-                | Val Accuracy: {total_acc_val / len(val_dataloader): .3f}')
+                | Val Accuracy: {total_acc_val / len(val_dataloader): .3f}"
+        )
 
     return model
 
@@ -88,31 +89,34 @@ def evaluate(model, test_data):
     total_acc_test = 0
     with torch.no_grad():
         for test_input, test_label in test_dataloader:
-              test_label = test_label.to(device)
-              mask = test_input['attention_mask'].to(device)
-              input_id = test_input['input_ids'].squeeze(1).to(device)
+            test_label = test_label.to(device)
+            mask = test_input["attention_mask"].to(device)
+            input_id = test_input["input_ids"].squeeze(1).to(device)
 
-              output = model(input_id, mask)
-              acc = (output.argmax(dim=1) == test_label).sum().item()
-              total_acc_test += acc
+            output = model(input_id, mask)
+            acc = (output.argmax(dim=1) == test_label).sum().item()
+            total_acc_test += acc
 
-    print(f'Test Accuracy: {total_acc_test / len(test_data): .3f}')
+    print(f"Test Accuracy: {total_acc_test / len(test_data): .3f}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     np.random.seed(112)
     torch.cuda.empty_cache()
 
     df = prepare_df()
-    df_train, df_val, df_test = np.split(df.sample(frac=1, random_state=42),
-                                         [int(.8 * len(df)), int(.9 * len(df))])
+    df_train, df_val, df_test = np.split(
+        df.sample(frac=1, random_state=42), [int(0.8 * len(df)), int(0.9 * len(df))]
+    )
 
     EPOCHS = 5
     LR = 1e-6
     model = BertClassifier()
 
     train_dataset, val_dataset = Dataset(df_train), Dataset(df_val)
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True)
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=2, shuffle=True
+    )
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=2)
 
     model = train(model, train_dataloader, val_dataloader, LR, EPOCHS)
