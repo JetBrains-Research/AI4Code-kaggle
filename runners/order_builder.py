@@ -51,6 +51,24 @@ class OrderBuilder:
         return order
 
     @staticmethod
+    def greedy_ranked(positions, n_md, n_code):
+        n = n_md + n_code
+        order = [-1] * n
+        positions = sorted(list(enumerate(positions)), key=lambda x: x[1])
+
+        cur_code_ind = 0
+        cur_md_ind = 0
+        for i in range(n):
+            if cur_md_ind < n_md and positions[cur_md_ind][1] <= i:
+                order[i] = n_code + cur_md_ind
+                cur_md_ind += 1
+            else:
+                order[i] = cur_code_ind
+                cur_code_ind += 1
+
+        return order
+
+    @staticmethod
     def _count_inversions(a):
         inversions = 0
         sorted_so_far = []
