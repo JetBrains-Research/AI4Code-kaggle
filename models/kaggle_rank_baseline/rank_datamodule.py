@@ -12,7 +12,7 @@ from data_managment.samplers import MDSampler
 
 class MarkdownDataModule(pl.LightningDataModule):
     def __init__(self, train_path: str = None, test_path: str = None, batch_size: int = 32, resample=False,
-                 train_dat=None, val_dat=None, test_dat=None, model="distilbert-base-uncased", sample_size=100):
+                 train_dat=None, val_dat=None, test_dat=None, model="distilbert-base-uncased", sample_size=100, val_size=0.1):
         super().__init__()
 
         self.test_path = test_path
@@ -20,7 +20,7 @@ class MarkdownDataModule(pl.LightningDataModule):
         self.resample = resample
 
         self.batch_size = batch_size
-        self.validation_size = 0.1
+        self.validation_size = val_size
         self.padding = 128
         self.sample_size = sample_size
 
@@ -157,7 +157,7 @@ class MarkdownDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
 
-        if (self.train_dataset is not None) and (self.val_dataset is not None) and (self.test_dataset is not None):
+        if (self.train_dataset is not None) and (self.val_dataset is not None):# and (self.test_dataset is not None):
             return
         train, val = self._read_train_dataset()
         test = self._read_test_dataset()
