@@ -15,9 +15,11 @@ tqdm.pandas()
 
 class Sampler:
 
-    def __init__(self, path_or_df, sample_size=0.1):
+    def __init__(self, path_or_df, sample_size=0.1, inference=False):
+        self.inference = inference
         self.df = path_or_df if isinstance(path_or_df, pd.DataFrame) else pd.read_feather(path_or_df)
-        self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")["cell_id"].transform("count")
+        if not self.inference:
+            self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")["cell_id"].transform("count")
         self.presampling(sample_size)
         self.name = ''
 
@@ -169,8 +171,8 @@ class PairwiseSampler(Sampler):
 
 
 class MDSampler(Sampler):
-    def __init__(self, path_or_df, sample_size=0.1):
-        super().__init__(path_or_df, sample_size)
+    def __init__(self, path_or_df, sample_size=0.1, inference=False):
+        super().__init__(path_or_df, sample_size, inference=inference)
 
     # @staticmethod
     # def get_code_count(sub_df):

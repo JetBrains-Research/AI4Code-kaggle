@@ -55,9 +55,9 @@ class MarkdownDataModule(pl.LightningDataModule):
     def _read_test_dataset(self):
 
         df = pd.read_feather(self.test_path)
-        sampler = MDSampler(df, sample_size=1)
+        sampler = MDSampler(df, sample_size=1, inference=True)
         df = sampler.sample_ranks(save=False)
-        df = df.rename(columns={'pct_rank': 'score'})
+        # df = df.rename(columns={'pct_rank': 'score'})
         test_dataset = Dataset.from_pandas(df)
         return test_dataset
 
