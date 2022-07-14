@@ -115,7 +115,7 @@ class MarkdownDataModule(pl.LightningDataModule):
 
         return dataset
 
-    def _preprocess_dataset(self, dataset):
+    def _preprocess_dataset(self, dataset, inference=False):
 
         def process_batch(batch):
             tokenized = self.tokenizer(
@@ -132,12 +132,15 @@ class MarkdownDataModule(pl.LightningDataModule):
         )
 
         dataset = self.tokenize_subsample(dataset)
-        
-        cols_to_keep =  [
+
+        cols_to_keep = [
             'input_ids', 'attention_mask', 'md_count', 'code_count',
             'normalized_plot_functions', 'normalized_defined_functions',
-            'normalized_sloc', 'score'
+            'normalized_sloc'
         ]
+        if not inference:
+            cols_to_keep += ['score']
+
         dataset.set_format('pt', cols_to_keep, output_all_columns=True)
         dataset = dataset.rename_column('id', 'notebook_id')
         cols_to_keep.append('notebook_id')
@@ -172,7 +175,7 @@ class MarkdownDataModule(pl.LightningDataModule):
         if self.test_path:
             test = self._read_test_dataset()
             print('preparing test data')
-            self.test_dataset = self._preprocess_dataset(test)
+            self.test_dataset = self._preprocess_dataset(test, inference=True)
 
     # def setup(self, stage=None):
     #     if stage == 'fit' or stage is None:
