@@ -144,8 +144,10 @@ class MarkdownDataModule(pl.LightningDataModule):
         dataset.set_format('pt', cols_to_keep, output_all_columns=True)
         dataset = dataset.rename_column('id', 'notebook_id')
         cols_to_keep.append('notebook_id')
+        cols_to_keep.append('cell_id')
+        print(dataset)
         dataset = dataset.remove_columns([col for col in dataset.column_names if col not in cols_to_keep])
-
+        print(dataset)
         return dataset
 
     def _split_if_ancestors(self, df):
