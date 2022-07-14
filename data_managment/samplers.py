@@ -26,7 +26,7 @@ class Sampler:
     def presampling(self, sample_size):
         nb_ids = self.df.id.unique()
         amount = sample_size if sample_size > 1 else round(len(nb_ids) * sample_size)
-        sample_ids = np.random.choice(nb_ids, amount)
+        sample_ids = np.random.choice(nb_ids, amount, replace=False)
         self.df = self.df.loc[self.df.id.isin(sample_ids), :]
 
     def save_dataset(self, dataset):
