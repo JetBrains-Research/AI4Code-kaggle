@@ -4,8 +4,15 @@ from transformers import DistilBertModel
 from .abstract_ranking_model import AbstractRankingModel
             
 class AutoRankingModel(AbstractRankingModel):
-    def __init__(self, model="distilbert-base-uncased", optimizer_config=None, scheduler_config=None, dropout_rate=0.0):
-        super(AutoRankingModel, self).__init__()
+    def __init__(
+            self,
+            model="distilbert-base-uncased",
+            optimizer_config=None,
+            scheduler_config=None,
+            dropout_rate=0.0,
+            test_notebook_order=None,
+    ):
+        super(AutoRankingModel, self).__init__(test_notebook_order=test_notebook_order)
 
         self.distill_bert = DistilBertModel.from_pretrained(model, return_dict=True)
         self.dense = torch.nn.Linear(768, 1)

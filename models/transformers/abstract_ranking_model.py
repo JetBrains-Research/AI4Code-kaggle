@@ -8,9 +8,10 @@ from .utils import extract_value
 
 
 class AbstractRankingModel(pl.LightningModule, ABC):
-    def __init__(self):
+    def __init__(self, test_notebook_order=None):
         super(AbstractRankingModel, self).__init__()
         self.loss_function = torch.nn.L1Loss()
+        self.test_notebooks_order = test_notebook_order
 
     @abstractmethod
     def forward(self, batch):
@@ -91,9 +92,6 @@ class AbstractRankingModel(pl.LightningModule, ABC):
         notebook_ids = np.concatenate([x["notebook_id"] for x in batched_preds])
         cell_ids = np.concatenate([x["cell_id"] for x in batched_preds])
 
-        if stage == "test":
-            resulting_order = {}
-
         for notebook_id in np.unique(notebook_ids):
             loc = notebook_id == notebook_ids
             pred_positions = preds[loc]
@@ -114,12 +112,10 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                     if prediction >= n_code:
                         pred_order[i] = cell_positions[prediction - n_code]
 
-                resulting_order[notebook_id] = pred_order
+                self.test_notebooks_order[notebook_id] = pred_order
 
         if stage != "test":
             kt = 1 - 4 * total_inv / total_max_inv
             log[f"{stage}_kendall_tau"] = kt
             self.log_dict(log, on_step=False, on_epoch=True)
-        else:
-            self.log_dict(resulting_order)
 
