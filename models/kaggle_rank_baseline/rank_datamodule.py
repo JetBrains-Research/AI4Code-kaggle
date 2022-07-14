@@ -157,16 +157,22 @@ class MarkdownDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
 
-        if (self.train_dataset is not None) and (self.val_dataset is not None):# and (self.test_dataset is not None):
+        if (self.train_dataset is not None) and (self.val_dataset is not None):
             return
-        train, val = self._read_train_dataset()
-        test = self._read_test_dataset()
-        print('preparing train data')
-        self.train_dataset = self._preprocess_dataset(train)
-        print('preparing validation data')
-        self.val_dataset = self._preprocess_dataset(val)
-#         print('preparing test data')
-#         self.test_dataset = self._preprocess_dataset(test)
+        if self.test_dataset is not None:
+            return
+
+        if self.train_path:
+            train, val = self._read_train_dataset()
+            print('preparing train data')
+            self.train_dataset = self._preprocess_dataset(train)
+            print('preparing validation data')
+            self.val_dataset = self._preprocess_dataset(val)
+
+        if self.test_path:
+            test = self._read_test_dataset()
+            print('preparing test data')
+            self.test_dataset = self._preprocess_dataset(test)
 
     # def setup(self, stage=None):
     #     if stage == 'fit' or stage is None:
@@ -185,4 +191,11 @@ class MarkdownDataModule(pl.LightningDataModule):
                           batch_size=self.batch_size, num_workers=4,
                           pin_memory=True)
 
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            num_workers=4,
+            pin_memory=True,
+        )
 # %%
