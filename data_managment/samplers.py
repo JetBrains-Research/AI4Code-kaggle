@@ -212,8 +212,8 @@ class MDSampler(Sampler):
                                                  processor=processor)
 
         markdowns_subset = self.df.merge(feature_df, left_on='id', right_index=True)
-        # markdowns_subset = markdowns_subset.loc[markdowns_subset.cell_type == 'markdown', base_features]
-        #
+        markdowns_subset = markdowns_subset.loc[markdowns_subset.cell_type == 'markdown', :]
+
         # if save:
         #     self.save_dataset(markdowns_subset.reset_index())
 
