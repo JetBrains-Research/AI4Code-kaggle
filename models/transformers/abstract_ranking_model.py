@@ -80,7 +80,6 @@ class AbstractRankingModel(pl.LightningModule, ABC):
 
         batched_preds = [output["batched_predictions"] for output in outputs]
 
-        print(batched_preds[0])
         if stage != "test":
             scores = torch.cat([x["score"] * (x["md_count"] + x["code_count"]) for x in batched_preds]).round()
 
@@ -89,6 +88,7 @@ class AbstractRankingModel(pl.LightningModule, ABC):
         code_counts = torch.cat([x["code_count"] for x in batched_preds])
 
         total_inv, total_max_inv = 0, 0
+        all_invs, all_max_invs = [], []
 
         notebook_ids = np.concatenate([x["notebook_id"] for x in batched_preds])
         cell_ids = np.concatenate([x["cell_id"] for x in batched_preds])
@@ -105,6 +105,8 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                 true_positions = scores[loc]
                 true_order = OrderBuilder.greedy_ranked(true_positions, n_md, n_code)
                 inv, max_inv = OrderBuilder.kendall_tau(true_order, pred_order)
+                all_invs.append(inv)
+                all_max_invs.append(max_inv)
                 total_inv += inv
                 total_max_inv += max_inv
             else:
@@ -116,7 +118,26 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                 self.test_notebooks_order[notebook_id] = pred_order
 
         if stage != "test":
+            all_invs = np.array(all_invs)
+            all_max_invs = np.array(all_max_invs)
+            inds = np.arange(len(all_invs))
+            all_kt = []
+            N_BOOTSTRAP = 10_000
+            PERCENTILES = [5, 10, 25, 50, 75, 90, 95]
+            
+            for _ in range(N_BOOTSTRAP):
+                inds_subset = np.random.choice(inds, len(inds))
+                invs_sum = all_invs[inds_subset].sum()
+                max_invs_sum = all_max_invs[inds_subset].sum()
+                all_kt.append(1 - 4 * invs_sum / max_invs_sum)
+            
             kt = 1 - 4 * total_inv / total_max_inv
             log[f"{stage}_kendall_tau"] = kt
+            log[f"{stage}_kendall_tau_std"] = np.std(all_kt)
+
+            all_kt = sorted(all_kt)
+            for p in PERCENTILES:
+                log[f"{stage}_kendall_tau_{p}p"] = sorted(all_kt)[N_BOOTSTRAP * p // 100]
+
             self.log_dict(log, on_step=False, on_epoch=True)
 
