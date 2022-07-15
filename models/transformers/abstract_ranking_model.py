@@ -57,16 +57,17 @@ class AbstractRankingModel(pl.LightningModule, ABC):
         else:
             log = {}
 
-        log["batched_predictions"] = {
-            "preds": preds.view(-1),
-            "md_count": batch["md_count"],
-            "code_count": batch["code_count"],
-            "notebook_id": batch["notebook_id"],
-            "cell_id": batch["cell_id"],
-        }
+        if stage != "train":
+            log["batched_predictions"] = {
+                "preds": preds.view(-1),
+                "md_count": batch["md_count"],
+                "code_count": batch["code_count"],
+                "notebook_id": batch["notebook_id"],
+                "cell_id": batch["cell_id"],
+            }
 
-        if stage != "test":
-            log["batched_predictions"]["score"] = batch["score"].view(-1)
+            if stage != "test":
+                log["batched_predictions"]["score"] = batch["score"].view(-1)
 
         return log
 
@@ -77,6 +78,10 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                 continue
             values = [extract_value(o[metric]) for o in outputs]
             log[f"epoch_{metric}"] = np.mean(values)
+
+        if stage == "train":
+            self.log_dict(log, on_step=False, on_epoch=True)
+            return
 
         batched_preds = [output["batched_predictions"] for output in outputs]
 
