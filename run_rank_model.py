@@ -11,8 +11,15 @@ parser.add_argument("config")
 args = parser.parse_args()
 config = OmegaConf.load(args.config)
 
+cols_to_keep =  [
+    'input_ids', 'attention_mask', 'md_count', 'code_count',
+    'normalized_plot_functions', 'normalized_defined_functions',
+    'normalized_sloc', 'score'
+]
 train_dat = Dataset.load_from_disk("data/full_dataset/full_train_rank_dataset.dat")
+train_dat.set_format('pt', cols_to_keep, output_all_columns=True)
 val_dat = Dataset.load_from_disk("data/full_dataset/full_val_rank_dataset.dat")
+val_dat.set_format('pt', cols_to_keep, output_all_columns=True)
 
 data_module = MarkdownDataModule(
     train_dat = train_dat,

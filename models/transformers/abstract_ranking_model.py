@@ -66,7 +66,7 @@ class AbstractRankingModel(pl.LightningModule, ABC):
         }
 
         if stage != "test":
-            log["batched_predictions"]["score"] = batch["score"].view(-1),
+            log["batched_predictions"]["score"] = batch["score"].view(-1)
 
         return log
 
@@ -80,6 +80,7 @@ class AbstractRankingModel(pl.LightningModule, ABC):
 
         batched_preds = [output["batched_predictions"] for output in outputs]
 
+        print(batched_preds[0])
         if stage != "test":
             scores = torch.cat([x["score"] * (x["md_count"] + x["code_count"]) for x in batched_preds]).round()
 

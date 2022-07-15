@@ -60,7 +60,7 @@ class OrderBuilder:
         cur_md_ind = 0
         for i in range(n):
             if (cur_code_ind >= n_code) or (cur_md_ind < n_md and positions[cur_md_ind][1] <= i):
-                order[i] = n_code + cur_md_ind
+                order[i] = n_code + positions[cur_md_ind][0]
                 cur_md_ind += 1
             else:
                 order[i] = cur_code_ind

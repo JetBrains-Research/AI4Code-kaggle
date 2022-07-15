@@ -11,11 +11,18 @@ from data_managment.samplers import MDSampler
 
 
 class MarkdownDataModule(pl.LightningDataModule):
-    def __init__(self, train_path: str = None, test_path: str = None, batch_size: int = 32, resample=False,
-                 train_dat=None, val_dat=None, test_dat=None, model="distilbert-base-uncased", sample_size=100, val_size=0.1):
+    def __init__(
+        self, 
+        train_path: str = None, val_path: str = None, test_path: str = None, 
+        batch_size: int = 32, 
+        resample=False,         
+        train_dat=None, val_dat=None, test_dat=None, 
+        model="distilbert-base-uncased", sample_size=100, val_size=0.1
+    ):
         super().__init__()
 
         self.test_path = test_path
+        self.val_path = val_path
         self.train_path = train_path
         self.resample = resample
 
@@ -38,6 +45,7 @@ class MarkdownDataModule(pl.LightningDataModule):
     def _read_train_dataset(self):
 
         df = pd.read_feather(self.train_path)
+            
         df = self.presampling(df)
 
         if self.resample:
@@ -45,19 +53,26 @@ class MarkdownDataModule(pl.LightningDataModule):
             df = sampler.sample_ranks(save=False)
 
         df = df.rename(columns={'pct_rank': 'score'})
+        
         train_df, val_df = self._split_if_ancestors(df)
-
         train_dataset = Dataset.from_pandas(train_df)
         validation_dataset = Dataset.from_pandas(val_df)
-
         return train_dataset, validation_dataset
+
+    def _read_val_dataset(self):
+
+        df = pd.read_feather(self.val_path)
+        sampler = MDSampler(df, sample_size=1, inference=False)
+        df = sampler.sample_ranks(save=False)
+        df = df.rename(columns={'pct_rank': 'score'})
+        val_dataset = Dataset.from_pandas(df)
+        return val_dataset
 
     def _read_test_dataset(self):
 
         df = pd.read_feather(self.test_path)
         sampler = MDSampler(df, sample_size=1, inference=True)
         df = sampler.sample_ranks(save=False)
-        # df = df.rename(columns={'pct_rank': 'score'})
         test_dataset = Dataset.from_pandas(df)
         return test_dataset
 
@@ -160,18 +175,21 @@ class MarkdownDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
 
-        if (self.train_dataset is not None) and (self.val_dataset is not None):
-            return
-        if self.test_dataset is not None:
+        if self.train_dataset or self.val_dataset or self.test_dataset:
             return
 
-        if self.train_path:
+        if self.train_path and not self.val_path:
             train, val = self._read_train_dataset()
             print('preparing train data')
             self.train_dataset = self._preprocess_dataset(train)
             print('preparing validation data')
             self.val_dataset = self._preprocess_dataset(val)
 
+        if self.val_path:
+            val = self._read_val_dataset()
+            print("preparing validation data")
+            self.val_dataset = self._preprocess_dataset(val)
+            
         if self.test_path:
             test = self._read_test_dataset()
             print('preparing test data')
