@@ -24,8 +24,8 @@ class AbstractRankingModel(pl.LightningModule, ABC):
 
     def training_step(self, batch, batch_idx):
         log = self._shared_step(batch, batch_idx, "train")
-        if self.scheduler is not None:
-            self.scheduler.step()
+#         if self.scheduler is not None:
+#             self.scheduler.step()
         return log
 
     def training_epoch_end(self, outputs):
@@ -98,11 +98,20 @@ class AbstractRankingModel(pl.LightningModule, ABC):
             pred_positions = preds[loc]
             n_md = md_counts[loc][0].item()
             n_code = code_counts[loc][0].item()
+            
+            if len(pred_positions) != n_md:
+                assert len(outputs) <= 2
+                pred_positions = torch.cat([pred_positions, torch.zeros(n_md - len(pred_positions)).to(self.device)])
 
             pred_order = OrderBuilder.greedy_ranked(pred_positions, n_md, n_code)
-
+            
             if stage != "test":
                 true_positions = scores[loc]
+                
+                if len(true_positions) != n_md:
+                    assert len(outputs) <= 2
+                    true_positions = torch.cat([true_positions, torch.zeros(n_md - len(true_positions)).to(self.device)])
+
                 true_order = OrderBuilder.greedy_ranked(true_positions, n_md, n_code)
                 inv, max_inv = OrderBuilder.kendall_tau(true_order, pred_order)
                 all_invs.append(inv)

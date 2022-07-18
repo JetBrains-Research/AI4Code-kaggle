@@ -1,11 +1,12 @@
 import torch
-from transformers import DistilBertModel
+from transformers import DistilBertModel, AutoModel
 
 from .abstract_ranking_model import AbstractRankingModel
             
 class AutoRankingModel(AbstractRankingModel):
     def __init__(
             self,
+            learning_rate=1e-5,
             model="distilbert-base-uncased",
             optimizer_config=None,
             scheduler_config=None,
@@ -14,7 +15,7 @@ class AutoRankingModel(AbstractRankingModel):
     ):
         super(AutoRankingModel, self).__init__(test_notebook_order=test_notebook_order)
 
-        self.distill_bert = DistilBertModel.from_pretrained(model, return_dict=True)
+        self.distill_bert = AutoModel.from_pretrained(model, return_dict=True)
         self.dense = torch.nn.Linear(768, 1)
         self.loss = torch.nn.MSELoss()
         self.activation = torch.nn.LeakyReLU()
@@ -23,6 +24,8 @@ class AutoRankingModel(AbstractRankingModel):
         self.optimizer_config = optimizer_config
         self.scheduler_config = scheduler_config
         self.scheduler = None
+        
+        self.learning_rate = learning_rate
 
     def forward(self, batch):
         input_ids = batch['input_ids']
@@ -36,14 +39,20 @@ class AutoRankingModel(AbstractRankingModel):
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
             filter(lambda p: p.requires_grad, self.parameters()),
+            lr=self.learning_rate,
             **self.optimizer_config,
         )
         
         if self.scheduler_config is not None:
-            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer,
-                **self.scheduler_config,
+#             self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
+#                 optimizer,
+#                 **self.scheduler_config,
+#             )
+            self.scheduler = torch.optim.lr_scheduler.StepLR(
+               optimizer,
+               **self.scheduler_config 
             )
+            return [optimizer], [self.scheduler]
         
         return optimizer
         

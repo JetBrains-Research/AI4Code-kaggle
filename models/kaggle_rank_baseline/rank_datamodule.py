@@ -5,7 +5,7 @@ from datasets import Dataset
 from sklearn.model_selection import train_test_split, GroupShuffleSplit
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import DistilBertTokenizer
+from transformers import DistilBertTokenizer, AutoTokenizer, RobertaTokenizerFast
 
 from data_managment.samplers import MDSampler
 
@@ -31,7 +31,7 @@ class MarkdownDataModule(pl.LightningDataModule):
         self.padding = 128
         self.sample_size = sample_size
 
-        self.tokenizer = DistilBertTokenizer.from_pretrained(model, do_lower_case=True)
+        self.tokenizer = RobertaTokenizerFast.from_pretrained(model, do_lower_case=True)
 
         self.train_dataset, self.val_dataset, self.test_dataset = train_dat, val_dat, test_dat
 
@@ -205,12 +205,12 @@ class MarkdownDataModule(pl.LightningDataModule):
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
                           batch_size=self.batch_size, num_workers=4,
-                          pin_memory=True, shuffle=True)
+                          pin_memory=False, shuffle=True)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset,
                           batch_size=self.batch_size, num_workers=4,
-                          pin_memory=True)
+                          pin_memory=False)
 
     def test_dataloader(self):
         return DataLoader(
