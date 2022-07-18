@@ -48,6 +48,7 @@ data_module = MarkdownDataModule(
 optimizer_config = config.get('optimizer_config')
 scheduler_config = config.get('scheduler_config')
 dropout_rate = config.get('dropout_rate', 0.)
+use_features = config.get("use_features", False)
 
 ckpt = config.get("checkpoint")
 if ckpt:
@@ -58,6 +59,7 @@ if ckpt:
         scheduler_config=scheduler_config,
         dropout_rate=dropout_rate,
         model=model,
+        use_features=use_features,
     )
 else:
     model = AutoRankingModel(
@@ -65,6 +67,7 @@ else:
         scheduler_config=scheduler_config,
         dropout_rate=dropout_rate,
         model=model,
+        use_features=use_features,
     )
     
 config_filename = args.config.split('/')[-1][:-4]
