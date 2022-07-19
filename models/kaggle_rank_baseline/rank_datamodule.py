@@ -31,7 +31,8 @@ class MarkdownDataModule(pl.LightningDataModule):
         self.padding = 128
         self.sample_size = sample_size
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model, do_lower_case=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(model)
+        self.model = model
 
         self.train_dataset, self.val_dataset, self.test_dataset = train_dat, val_dat, test_dat
 
@@ -50,10 +51,8 @@ class MarkdownDataModule(pl.LightningDataModule):
 
         if self.resample:
             sampler = MDSampler(df, sample_size=1)
-            df = sampler.sample_ranks(save=False)
+            df = sampler.sample_ranks(self.model, save=False)
 
-        df = df.rename(columns={'pct_rank': 'score'})
-        
         train_df, val_df = self._split_if_ancestors(df)
         train_dataset = Dataset.from_pandas(train_df)
         validation_dataset = Dataset.from_pandas(val_df)
@@ -63,8 +62,7 @@ class MarkdownDataModule(pl.LightningDataModule):
 
         df = pd.read_feather(self.val_path)
         sampler = MDSampler(df, sample_size=1, inference=False)
-        df = sampler.sample_ranks(save=False)
-        df = df.rename(columns={'pct_rank': 'score'})
+        df = sampler.sample_ranks(self.model, save=False)
         val_dataset = Dataset.from_pandas(df)
         return val_dataset
 
@@ -72,19 +70,15 @@ class MarkdownDataModule(pl.LightningDataModule):
 
         df = pd.read_feather(self.test_path)
         sampler = MDSampler(df, sample_size=1, inference=True)
-        df = sampler.sample_ranks(save=False)
+        df = sampler.sample_ranks(self.model, save=False)
         test_dataset = Dataset.from_pandas(df)
         return test_dataset
 
     def tokenize_subsample(self, dataset):
 
-        def flatten_list(hlist):
-            return [l for sublist in hlist for l in sublist[1:]]
-
-#         def padding_to_max(ids, max_len=20 * 22):
-        def padding_to_max(ids, max_len=20 * 19):
+        def padding_to_max(ids, token, max_len=20 * 19):
             to_pad = max_len - len(ids)
-            ids.extend(to_pad * [0])
+            ids.extend(to_pad * [token])
             return ids
 
         def concat_features(example):
@@ -102,20 +96,17 @@ class MarkdownDataModule(pl.LightningDataModule):
         tokenized_code_subsample_masks = []
 
         for subsample in tqdm(code_subsample):
-            tokenized = self.tokenizer(subsample,
-                                       add_special_tokens=True,
-                                       max_length=20,
-                                       padding=False,
-                                       truncation=True)
+            input_ids = np.concatecnate([
+                list(map(int, tokens.split()))[:18] + [self.tokenizer.sep_token]
+                for tokens in subsample
+            ]).tolist()
+            attention_mask = [1] * len(input_ids)
 
-            tokenized['input_ids'] = flatten_list(tokenized['input_ids'])
-            tokenized['attention_mask'] = flatten_list(tokenized['attention_mask'])
+            input_ids = padding_to_max(input_ids, self.tokenizer.pad_token)
+            attention_mask = padding_to_max(attention_mask, 0)
 
-            tokenized['input_ids'] = padding_to_max(tokenized['input_ids'])
-            tokenized['attention_mask'] = padding_to_max(tokenized['attention_mask'])
-
-            tokenized_code_subsample_ids.append(tokenized['input_ids'])
-            tokenized_code_subsample_masks.append(tokenized['attention_mask'])
+            tokenized_code_subsample_ids.append(input_ids)
+            tokenized_code_subsample_masks.append(attention_mask)
 
         mapping['ftr_input_ids'] = tokenized_code_subsample_ids
         mapping['ftr_attention_mask'] = tokenized_code_subsample_masks
@@ -133,14 +124,17 @@ class MarkdownDataModule(pl.LightningDataModule):
     def _preprocess_dataset(self, dataset, inference=False):
 
         def process_batch(batch):
-            tokenized = self.tokenizer(
-                batch['source'],
+            tokens = [{'input_ids': x} for x in batch["input_ids"]]
+            tokenized = self.tokenizer.pad(
+                tokens,
+                return_attention_mask=True,
                 padding='max_length',
                 truncation=True,
                 max_length=self.padding
             )
             return tokenized
 
+        dataset.rename_column(self.model, "input_ids")
         dataset = dataset.map(
             lambda batch: process_batch(batch),
             batched=True, batch_size=self.batch_size,

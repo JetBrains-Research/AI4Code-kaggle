@@ -2,6 +2,7 @@ import io
 import re
 import tokenize
 
+import numpy as np
 import pandas as pd
 
 plot_functions = {
@@ -15,7 +16,9 @@ plot_functions = {
 
 
 class FeaturesProcessor:
-    def __init__(self):
+    def __init__(self, model):
+        self.model = model
+
         self.group_params = {'md_count': -1, 'code_count': -1, 'source_code': ''}
 
         self.mapping = {
@@ -67,12 +70,26 @@ class FeaturesProcessor:
         functions = self._get_functions_by_code(source_code)
         return len(functions) / self.group_params['code_count']
 
-    @staticmethod
-    def _get_code_subsample(group, n=20, seed=42):
+    # @staticmethod
+    # def _get_code_subsample(group, n=20, seed=42):
+    #     code_df = group[group.cell_type == "code"]
+    #
+    #     n = len(code_df) if n > len(code_df) else n
+    #     return '<lop>'.join(code_df.source.sample(n, random_state=seed).astype(str).tolist())
+
+    def _get_code_subsample(self, group, n=20, seed=42):
         code_df = group[group.cell_type == "code"]
 
         n = len(code_df) if n > len(code_df) else n
-        return '<lop>'.join(code_df.source.sample(n, random_state=seed).astype(str).tolist())
+
+        if n == len(code_df):
+            selection = code_df[self.model]
+        else:
+            indices = np.random.choice(len(group) - 2, n - 2, replace=False) + 1
+            indices = [0] + sorted(indices.tolist()) + [len(group) - 1]
+            selection = code_df[self.model].iloc[indices]
+
+        return '<lop>'.join(selection.astype(str).tolist())
 
     @staticmethod
     def _get_functions_by_code(source):

@@ -198,15 +198,16 @@ class MDSampler(Sampler):
 
     def sample_ranks(
             self,
+            model,
             feature_list=('md_count', 'code_count', 'defined_functions',
                           'normalized_plot_functions', 'normalized_defined_functions',
                           'normalized_sloc', 'code_subsample'),
-            save=True
+            save=True,
     ):
         base_features = ['id', 'cell_id', 'source', 'pct_rank', 'ancestor_id']
         base_features.extend(feature_list)
 
-        processor = FeaturesProcessor()
+        processor = FeaturesProcessor(model)
         feature_df = self.df.groupby('id').apply(self.calculate_features,
                                                  feature_list=feature_list,
                                                  processor=processor)
