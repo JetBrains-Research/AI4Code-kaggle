@@ -89,7 +89,8 @@ class AbstractRankingModel(pl.LightningModule, ABC):
         if stage != "test":
             scores = torch.cat([x["score"] * (x["md_count"] + x["code_count"]) for x in batched_preds]).round()
 
-        preds = torch.cat([x["preds"] * (x["md_count"] + x["code_count"]) for x in batched_preds]).round()
+        # preds = torch.cat([x["preds"] * (x["md_count"] + x["code_count"]) for x in batched_preds]).round()
+        preds = torch.cat([x["preds"] for x in batched_preds])
         md_counts = torch.cat([x["md_count"] for x in batched_preds])
         code_counts = torch.cat([x["code_count"] for x in batched_preds])
 
@@ -109,10 +110,7 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                 assert len(outputs) <= 2
                 pred_positions = torch.cat([pred_positions, torch.zeros(n_md - len(pred_positions)).to(self.device)])
 
-            if self.ranked_reversed:
-                pred_order = OrderBuilder.greedy_ranked_reversed(pred_positions, n_md, n_code)
-            else:
-                pred_order = OrderBuilder.greedy_ranked(pred_positions, n_md, n_code)
+            pred_order = OrderBuilder.kaggle_ranker(pred_positions, n_md, n_code)
             
             if stage != "test":
                 true_positions = scores[loc]

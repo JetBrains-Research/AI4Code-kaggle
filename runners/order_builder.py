@@ -85,7 +85,20 @@ class OrderBuilder:
                 cur_code_ind -= 1
 
         return order
-    
+
+    @staticmethod
+    def kaggle_ranker(rel_positions, n_md, n_code):
+        n = n_md + n_code
+        ranks = [
+            (i, (i + 1) / n_code)
+            for i in range(n_code)
+        ] + [
+            (n_code + i, pos)
+            for i, pos in enumerate(rel_positions)
+        ]
+        ranks.sort(key=lambda x: x[1])
+        return [x[0] for x in ranks]
+
     @staticmethod
     def _count_inversions(a):
         inversions = 0
