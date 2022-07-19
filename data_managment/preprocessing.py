@@ -19,6 +19,7 @@ stop_words = set(stopwords.words('english'))
 
 
 def kaggle_cleaning(document, min_len=4):
+    document = re.sub(r"_", " ", document)
     document = re.sub(r"\W", " ", document)
     document = re.sub(r"\s+[a-zA-Z]\s+", " ", document)
     document = re.sub(r"\^[a-zA-Z]\s+", " ", document)
@@ -32,7 +33,7 @@ def kaggle_cleaning(document, min_len=4):
     tokens = [
         token
         for token in tokens
-        if len(token) >= min_len and token not in stopwords
+        if len(token) >= min_len and token not in stop_words
     ]
     return " ".join(tokens)
 
