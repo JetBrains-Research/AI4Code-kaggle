@@ -31,7 +31,7 @@ class MarkdownDataModule(pl.LightningDataModule):
         self.padding = 128
         self.sample_size = sample_size
 
-        self.tokenizer = RobertaTokenizerFast.from_pretrained(model, do_lower_case=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(model, do_lower_case=True)
 
         self.train_dataset, self.val_dataset, self.test_dataset = train_dat, val_dat, test_dat
 
@@ -217,6 +217,6 @@ class MarkdownDataModule(pl.LightningDataModule):
             self.test_dataset,
             batch_size=self.batch_size,
             num_workers=4,
-            pin_memory=True,
+            pin_memory=False,
         )
 # %%

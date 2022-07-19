@@ -6,7 +6,7 @@ from .abstract_ranking_model import AbstractRankingModel
 class AutoRankingModel(AbstractRankingModel):
     def __init__(
             self,
-            learning_rate=1e-5,
+#             learning_rate=1e-5,
             model="distilbert-base-uncased",
             optimizer_config=None,
             scheduler_config=None,
@@ -31,7 +31,8 @@ class AutoRankingModel(AbstractRankingModel):
             self.dense = torch.nn.Linear(768, 1)
         else:
             self.dense_1 = torch.nn.Linear(768 + len(self.features), hidden_size)
-            self.dense_2 = torch.nn.Linear(hidden_size + len(self.features), 1)
+#             self.dense_2 = torch.nn.Linear(hidden_size + len(self.features), 1)
+            self.dense_2 = torch.nn.Linear(hidden_size, 1)
 
         self.loss = torch.nn.MSELoss()
         self.activation = torch.nn.LeakyReLU()
@@ -41,7 +42,7 @@ class AutoRankingModel(AbstractRankingModel):
         self.scheduler_config = scheduler_config
         self.scheduler = None
 
-        self.learning_rate = learning_rate
+#         self.learning_rate = learning_rate
 
     def forward(self, batch):
         input_ids = batch['input_ids']
@@ -59,7 +60,7 @@ class AutoRankingModel(AbstractRankingModel):
             ], dim=-1)
             embeddings = torch.cat([embeddings, features], dim=-1)
             hidden_state = self.activation(self.dense_1(embeddings))
-            hidden_state = torch.cat([hidden_state, features], dim=-1)
+#             hidden_state = torch.cat([hidden_state, features], dim=-1)
             preds = self.dense_2(hidden_state)
 
         return preds
@@ -67,7 +68,7 @@ class AutoRankingModel(AbstractRankingModel):
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
             filter(lambda p: p.requires_grad, self.parameters()),
-            lr=self.learning_rate,
+#             lr=self.learning_rate,
             **self.optimizer_config,
         )
         

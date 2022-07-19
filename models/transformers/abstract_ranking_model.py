@@ -8,10 +8,11 @@ from .utils import extract_value
 
 
 class AbstractRankingModel(pl.LightningModule, ABC):
-    def __init__(self, test_notebook_order=None):
+    def __init__(self, test_notebook_order=None, ranked_reversed=True):
         super(AbstractRankingModel, self).__init__()
         self.loss_function = torch.nn.L1Loss()
         self.test_notebooks_order = test_notebook_order
+        self.ranked_reversed = ranked_reversed
 
     @abstractmethod
     def forward(self, batch):
@@ -108,7 +109,10 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                 assert len(outputs) <= 2
                 pred_positions = torch.cat([pred_positions, torch.zeros(n_md - len(pred_positions)).to(self.device)])
 
-            pred_order = OrderBuilder.greedy_ranked(pred_positions, n_md, n_code)
+            if self.ranked_reversed:
+                pred_order = OrderBuilder.greedy_ranked_reversed(pred_positions, n_md, n_code)
+            else:
+                pred_order = OrderBuilder.greedy_ranked(pred_positions, n_md, n_code)
             
             if stage != "test":
                 true_positions = scores[loc]
