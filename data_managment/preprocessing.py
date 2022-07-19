@@ -93,14 +93,14 @@ def preprocess_dataframe(df: DataFrame) -> DataFrame:
 class DatasetProcessor:
     def __init__(self, path):
         self.df = pd.read_feather(path)
-        self.mapping = {"markdown": MdProcessor}
+        self.mapping = {"markdown": MdProcessor()}
 
     @property
     def dataset(self):
         return self.df
 
     def process_dataset(self):
-        for cell_type, processor in self.mapping:
+        for cell_type, processor in self.mapping.items():
             md_mask = self.df["cell_type"] == cell_type
             self.df["processed_source"] = None
             self.df.loc[md_mask, "processed_source"] = self.df[md_mask].source.apply(
