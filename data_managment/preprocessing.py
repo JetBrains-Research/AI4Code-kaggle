@@ -62,12 +62,25 @@ class MdProcessor:
             "bold_text": self.rule2text("strong"),
             "italic_text": self.rule2text("i"),
             "code": self.rule2text("code"),
-            "links": self.rule2text("a"),
+            "links_labels": self.rule2text("a"),
+            "image_labels": self.get_image_labels,
+            "links": self.get_links,
         }
 
     @staticmethod
     def rule2text(search_fun):
         return lambda s: [i.text for i in s.find_all(search_fun)]
+
+    @staticmethod
+    def get_image_labels(s):
+        return [i['alt'] for i in s.find_all('img', alt=True)]
+
+    @staticmethod
+    def get_links(s):
+        return [
+            i['href'] if i.name == 'a' else i['src']
+            for i in s.find_all('a') + s.find_all('img')
+        ]
 
     def process(self, md_string):
         soup = BeautifulSoup(markdown(md_string), "html.parser")
@@ -106,3 +119,10 @@ class DatasetProcessor:
             self.df.loc[md_mask, "processed_source"] = self.df[md_mask].source.apply(
                 lambda row: processor.process(row)
             )
+
+
+if __name__ == '__main__':
+    prc = MdProcessor()
+    md = '![CNN Architecture](https://upload.wikimedia.org/wikipedia/commons/6/63/Typical_cnn.png)'
+    md += '\nMy favorite search engine is [Duck Duck Go](https://duckduckgo.com).'
+    print(prc.process(md))
