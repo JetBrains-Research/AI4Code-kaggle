@@ -51,6 +51,55 @@ class OrderBuilder:
         return order
 
     @staticmethod
+    def greedy_ranked(positions, n_md, n_code):
+        n = n_md + n_code
+        order = [-1] * n
+        positions = sorted(list(enumerate(positions)), key=lambda x: x[1])
+
+        cur_code_ind = 0
+        cur_md_ind = 0
+        for i in range(n):
+            if (cur_code_ind >= n_code) or (cur_md_ind < n_md and positions[cur_md_ind][1] <= i):
+                order[i] = n_code + positions[cur_md_ind][0]
+                cur_md_ind += 1
+            else:
+                order[i] = cur_code_ind
+                cur_code_ind += 1
+
+        return order
+
+    @staticmethod
+    def greedy_ranked_reversed(positions, n_md, n_code):
+        n = n_md + n_code
+        order = [-1] * n
+        positions = sorted(list(enumerate(positions)), key=lambda x: x[1])
+
+        cur_code_ind = n_code - 1
+        cur_md_ind = n_md - 1
+        for i in reversed(range(n)):
+            if (cur_code_ind < 0) or (cur_md_ind >= 0 and positions[cur_md_ind][1] >= i):
+                order[i] = n_code + positions[cur_md_ind][0]
+                cur_md_ind -= 1
+            else:
+                order[i] = cur_code_ind
+                cur_code_ind -= 1
+
+        return order
+
+    @staticmethod
+    def kaggle_ranker(rel_positions, n_md, n_code):
+        n = n_md + n_code
+        ranks = [
+            (i, (i + 1) / n_code)
+            for i in range(n_code)
+        ] + [
+            (n_code + i, pos)
+            for i, pos in enumerate(rel_positions)
+        ]
+        ranks.sort(key=lambda x: x[1])
+        return [x[0] for x in ranks]
+
+    @staticmethod
     def _count_inversions(a):
         inversions = 0
         sorted_so_far = []

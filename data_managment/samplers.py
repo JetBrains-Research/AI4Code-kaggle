@@ -15,16 +15,18 @@ tqdm.pandas()
 
 class Sampler:
 
-    def __init__(self, path_or_df, sample_size=0.1):
+    def __init__(self, path_or_df, sample_size=0.1, inference=False):
+        self.inference = inference
         self.df = path_or_df if isinstance(path_or_df, pd.DataFrame) else pd.read_feather(path_or_df)
-        self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")["cell_id"].transform("count")
+        if not self.inference:
+            self.df["pct_rank"] = self.df["rank"] / self.df.groupby("id")["cell_id"].transform("count")
         self.presampling(sample_size)
         self.name = ''
 
     def presampling(self, sample_size):
         nb_ids = self.df.id.unique()
         amount = sample_size if sample_size > 1 else round(len(nb_ids) * sample_size)
-        sample_ids = np.random.choice(nb_ids, amount)
+        sample_ids = np.random.choice(nb_ids, amount, replace=False)
         self.df = self.df.loc[self.df.id.isin(sample_ids), :]
 
     def save_dataset(self, dataset):
@@ -169,8 +171,8 @@ class PairwiseSampler(Sampler):
 
 
 class MDSampler(Sampler):
-    def __init__(self, path_or_df, sample_size=0.1):
-        super().__init__(path_or_df, sample_size)
+    def __init__(self, path_or_df, sample_size=0.1, inference=False):
+        super().__init__(path_or_df, sample_size, inference=inference)
 
     # @staticmethod
     # def get_code_count(sub_df):
@@ -210,8 +212,8 @@ class MDSampler(Sampler):
                                                  processor=processor)
 
         markdowns_subset = self.df.merge(feature_df, left_on='id', right_index=True)
-        # markdowns_subset = markdowns_subset.loc[markdowns_subset.cell_type == 'markdown', base_features]
-        #
+        markdowns_subset = markdowns_subset.loc[markdowns_subset.cell_type == 'markdown', :]
+
         # if save:
         #     self.save_dataset(markdowns_subset.reset_index())
 

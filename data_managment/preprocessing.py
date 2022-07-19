@@ -7,15 +7,19 @@ from bs4 import BeautifulSoup
 from markdown import markdown
 
 from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
 import nltk
 
 nltk.download("wordnet")
 nltk.download("omw-1.4")
+nltk.download('stopwords')
 
 stemmer = WordNetLemmatizer()
+stop_words = set(stopwords.words('english'))
 
 
-def kaggle_cleaning(document):
+def kaggle_cleaning(document, min_len=4):
+    document = re.sub(r"_", " ", document)
     document = re.sub(r"\W", " ", document)
     document = re.sub(r"\s+[a-zA-Z]\s+", " ", document)
     document = re.sub(r"\^[a-zA-Z]\s+", " ", document)
@@ -26,7 +30,11 @@ def kaggle_cleaning(document):
     document = document.strip().lower()
     tokens = document.split()
     tokens = [stemmer.lemmatize(token) for token in tokens]
-    tokens = [token for token in tokens if len(token) > 3]
+    tokens = [
+        token
+        for token in tokens
+        if len(token) >= min_len and token not in stop_words
+    ]
     return " ".join(tokens)
 
 
