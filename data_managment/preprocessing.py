@@ -1,4 +1,3 @@
-import json
 import re
 
 import nltk
@@ -69,32 +68,23 @@ class MdProcessor:
 
     @staticmethod
     def rule2text(search_fun):
-        return lambda s: [i.text for i in s.find_all(search_fun)]
+        return lambda s: clean_text(" ".join([i.text for i in s.find_all(search_fun)]))
 
-    def process(self, md_string, nb_index=None, cell_index=None):
+    def process(self, md_string):
         soup = BeautifulSoup(markdown(md_string), "html.parser")
         res = {}
 
         for name, fun in self.features.items():
-            value = fun(soup)
-            if isinstance(value, list):
-                value = " ".join(value)
-            res[name] = value
-
-        if nb_index is not None and cell_index is not None:
-            res['id'], res['cell_id'] = nb_index, cell_index
+            res[name] = fun(soup)
 
         return res
 
 
-def preprocess_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    df_md = df.groupby('cell_type').get_group('markdown').set_index(['id', 'cell_id'])
-
+def preprocess_dataframe(df: DataFrame) -> DataFrame:
     md_processor = MdProcessor()
-    processed_data = [md_processor.process(row, nb_index, cell_index)
-                      for (nb_index, cell_index), row in tqdm(df_md.source.items())]
+    df_md = df.groupby('cell_type').get_group('markdown').set_index(['id', 'cell_id'])
+    processed_data_df = df_md.source.apply(lambda x: pd.Series(md_processor.process(x)))
 
-    processed_data_df = pd.DataFrame(processed_data).set_index(['id', 'cell_id'])
     return df.merge(processed_data_df, on=['id', 'cell_id'], how='left')
 
 
