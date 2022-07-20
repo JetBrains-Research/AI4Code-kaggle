@@ -119,7 +119,7 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                     assert len(outputs) <= 2
                     true_positions = torch.cat([true_positions, torch.zeros(n_md - len(true_positions)).to(self.device)])
 
-                true_order = OrderBuilder.greedy_ranked(true_positions, n_md, n_code)
+                true_order = OrderBuilder.kaggle_ranker(true_positions, n_md, n_code)
                 inv, max_inv = OrderBuilder.kendall_tau(true_order, pred_order)
                 all_invs.append(inv)
                 all_max_invs.append(max_inv)

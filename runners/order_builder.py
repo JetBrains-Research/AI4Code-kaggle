@@ -90,7 +90,7 @@ class OrderBuilder:
     def kaggle_ranker(rel_positions, n_md, n_code):
         n = n_md + n_code
         ranks = [
-            (i, (i + 1) / n_code)
+            (i, (i + 1) / (n_code + 1))
             for i in range(n_code)
         ] + [
             (n_code + i, pos)
