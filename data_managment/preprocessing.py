@@ -1,18 +1,20 @@
-import re
 import json
+import re
 
+import nltk
 import pandas as pd
-from pandas import DataFrame
 from bs4 import BeautifulSoup
 from markdown import markdown
-
-from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
-import nltk
+from nltk.stem import WordNetLemmatizer
+from pandas import DataFrame
+from tqdm import tqdm
 
 nltk.download("wordnet")
 nltk.download("omw-1.4")
 nltk.download('stopwords')
+
+tqdm.pandas()
 
 stemmer = WordNetLemmatizer()
 stop_words = set(stopwords.words('english'))
@@ -83,7 +85,7 @@ def preprocess_dataframe(df: DataFrame) -> DataFrame:
     md_mask = df["cell_type"] == "markdown"
 
     df["processed_source"] = None
-    df.loc[md_mask, "processed_source"] = df[md_mask].source.apply(
+    df.loc[md_mask, "processed_source"] = df[md_mask].source.progress_apply(
         lambda row: md_processor.process(row)
     )
 
