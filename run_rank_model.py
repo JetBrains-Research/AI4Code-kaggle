@@ -8,6 +8,7 @@ from omegaconf import OmegaConf
 
 parser = argparse.ArgumentParser()
 parser.add_argument("config")
+parser.add_argument("device", type=int)
 args = parser.parse_args()
 config = OmegaConf.load(args.config)
 
@@ -20,14 +21,14 @@ cols_to_keep =  [
 ]
 
 train_dataset_paths = {
-    'distilbert-base-uncased': "data/all_dataset/train_rank_dataset.dat",
-    'microsoft/unixcoder-base': "data/all_dataset/unixcoder_train_rank_dataset.dat",
-    "microsoft/codebert-base": "data/all_dataset/codebert_train_rank_dataset.dat",
+    'distilbert-base-uncased': "data/all_dataset/distilbert_train_rank_dataset.dat",
+#     'microsoft/unixcoder-base': "data/all_dataset/unixcoder_train_rank_dataset.dat",
+#     "microsoft/codebert-base": "data/all_dataset/codebert_train_rank_dataset.dat",
 }
 val_dataset_paths = {
-    'distilbert-base-uncased': "data/all_dataset/val_rank_dataset.dat",
-    'microsoft/unixcoder-base': "data/all_dataset/unixcoder_val_rank_dataset.dat",
-    "microsoft/codebert-base": "data/all_dataset/codebert_val_rank_dataset.dat",
+    'distilbert-base-uncased': "data/all_dataset/distilbert_val_rank_dataset.dat",
+#     'microsoft/unixcoder-base': "data/all_dataset/unixcoder_val_rank_dataset.dat",
+#     "microsoft/codebert-base": "data/all_dataset/codebert_val_rank_dataset.dat",
 }
 
 print("Loading train dataset")
@@ -85,9 +86,9 @@ trainer = pl.Trainer(
     logger=wandb_logger, 
     accelerator="gpu",
     max_epochs=10,
-    devices=[config.device],
+    devices=[args.device],
     enable_progress_bar=True,
-    log_every_n_steps=1,
+    log_every_n_steps=20,
     val_check_interval=config.get("val_check_interval", 10000),
     callbacks=[checkpoint_callback],
     accumulate_grad_batches=config.get("accumulate_grad_batches", 1),

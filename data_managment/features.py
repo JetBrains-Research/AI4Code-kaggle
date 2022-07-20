@@ -85,8 +85,8 @@ class FeaturesProcessor:
         if n == len(code_df):
             selection = code_df[self.model]
         else:
-            indices = np.random.choice(len(group) - 2, n - 2, replace=False) + 1
-            indices = [0] + sorted(indices.tolist()) + [len(group) - 1]
+            indices = np.random.choice(len(code_df) - 2, n - 2, replace=False) + 1
+            indices = [0] + sorted(indices.tolist()) + [len(code_df) - 1]
             selection = code_df[self.model].iloc[indices]
 
         return '<lop>'.join(selection.astype(str).tolist())

@@ -4,9 +4,9 @@ from tqdm.auto import tqdm
 from langdetect import detect, LangDetectException
 
 
-def detect_language(document):
+def detect_language(document, min_len=5):
     try:
-        if len(document.split()) > 5:
+        if len(document.split()) > min_len:
             return detect(document)
         else:
             return "short"

@@ -96,13 +96,13 @@ class MarkdownDataModule(pl.LightningDataModule):
         tokenized_code_subsample_masks = []
 
         for subsample in tqdm(code_subsample):
-            input_ids = np.concatecnate([
-                list(map(int, tokens.split()))[:18] + [self.tokenizer.sep_token]
+            input_ids = np.concatenate([
+                list(map(int, tokens.split()))[:18] + [self.tokenizer.sep_token_id]
                 for tokens in subsample
             ]).tolist()
             attention_mask = [1] * len(input_ids)
 
-            input_ids = padding_to_max(input_ids, self.tokenizer.pad_token)
+            input_ids = padding_to_max(input_ids, self.tokenizer.pad_token_id)
             attention_mask = padding_to_max(attention_mask, 0)
 
             tokenized_code_subsample_ids.append(input_ids)
@@ -124,17 +124,23 @@ class MarkdownDataModule(pl.LightningDataModule):
     def _preprocess_dataset(self, dataset, inference=False):
 
         def process_batch(batch):
-            tokens = [{'input_ids': x} for x in batch["input_ids"]]
+            tokens = [{
+                'input_ids': (
+                    [self.tokenizer.cls_token_id] + 
+                    list(map(int, x.split()))[:self.padding-2] + 
+                    [self.tokenizer.sep_token_id]
+                )} 
+                for x in batch["input_ids"]
+            ]
             tokenized = self.tokenizer.pad(
                 tokens,
                 return_attention_mask=True,
                 padding='max_length',
-                truncation=True,
                 max_length=self.padding
             )
             return tokenized
 
-        dataset.rename_column(self.model, "input_ids")
+        dataset = dataset.rename_column(self.model, "input_ids")
         dataset = dataset.map(
             lambda batch: process_batch(batch),
             batched=True, batch_size=self.batch_size,
