@@ -71,25 +71,31 @@ class MdProcessor:
     def rule2text(search_fun):
         return lambda s: [i.text for i in s.find_all(search_fun)]
 
-    def process(self, md_string):
+    def process(self, md_string, nb_index=None, cell_index=None):
         soup = BeautifulSoup(markdown(md_string), "html.parser")
         res = {}
+
         for name, fun in self.features.items():
-            res[name] = fun(soup)
+            value = fun(soup)
+            if isinstance(value, list):
+                value = " ".join(value)
+            res[name] = value
 
-        return json.dumps(res)
+        if nb_index is not None and cell_index is not None:
+            res['id'], res['cell_id'] = nb_index, cell_index
+
+        return res
 
 
-def preprocess_dataframe(df: DataFrame) -> DataFrame:
+def preprocess_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df_md = df.groupby('cell_type').get_group('markdown').set_index(['id', 'cell_id'])
+
     md_processor = MdProcessor()
-    md_mask = df["cell_type"] == "markdown"
+    processed_data = [md_processor.process(row, nb_index, cell_index)
+                      for (nb_index, cell_index), row in tqdm(df_md.source.items())]
 
-    df["processed_source"] = None
-    df.loc[md_mask, "processed_source"] = df[md_mask].source.progress_apply(
-        lambda row: md_processor.process(row)
-    )
-
-    return df
+    processed_data_df = pd.DataFrame(processed_data).set_index(['id', 'cell_id'])
+    return df.merge(processed_data_df, on=['id', 'cell_id'], how='left')
 
 
 class DatasetProcessor:
