@@ -81,7 +81,7 @@ class AutoRankingModel(AbstractRankingModel):
             #    optimizer,
             #    **self.scheduler_config
             # )
-            return [optimizer], [self.scheduler]
+            # return [optimizer], [self.scheduler]
         
         return optimizer
         
