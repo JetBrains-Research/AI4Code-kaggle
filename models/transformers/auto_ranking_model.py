@@ -73,14 +73,14 @@ class AutoRankingModel(AbstractRankingModel):
         )
         
         if self.scheduler_config is not None:
-#             self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
-#                 optimizer,
-#                 **self.scheduler_config,
-#             )
-            self.scheduler = torch.optim.lr_scheduler.StepLR(
-               optimizer,
-               **self.scheduler_config 
+            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                optimizer,
+                **self.scheduler_config,
             )
+            # self.scheduler = torch.optim.lr_scheduler.StepLR(
+            #    optimizer,
+            #    **self.scheduler_config
+            # )
             return [optimizer], [self.scheduler]
         
         return optimizer
