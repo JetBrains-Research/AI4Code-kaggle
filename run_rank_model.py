@@ -22,14 +22,15 @@ cols_to_keep =  [
 
 train_dataset_paths = {
     'distilbert-base-uncased': "data/all_dataset/distilbert_train_rank_dataset.dat",
-#     'microsoft/unixcoder-base': "data/all_dataset/unixcoder_train_rank_dataset.dat",
-#     "microsoft/codebert-base": "data/all_dataset/codebert_train_rank_dataset.dat",
+    'microsoft/unixcoder-base': "data/all_dataset/unixcoder_train_rank_dataset.dat",
+    "microsoft/codebert-base": "data/all_dataset/codebert_train_rank_dataset.dat",
+    "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_train_rank_dataset.dat",
 }
 val_dataset_paths = {
-#     'distilbert-base-uncased': "data/all_dataset/distilbert_val_small_rank_dataset.dat",
     'distilbert-base-uncased': "data/all_dataset/distilbert_val_rank_dataset.dat",
-#     'microsoft/unixcoder-base': "data/all_dataset/unixcoder_val_rank_dataset.dat",
-#     "microsoft/codebert-base": "data/all_dataset/codebert_val_rank_dataset.dat",
+    'microsoft/unixcoder-base': "data/all_dataset/unixcoder_val_rank_dataset.dat",
+    "microsoft/codebert-base": "data/all_dataset/codebert_val_rank_dataset.dat",
+    "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_val_rank_dataset.dat",
 }
 
 print("Loading train dataset")
@@ -48,7 +49,13 @@ data_module = MarkdownDataModule(
 )
 
 optimizer_config = config.get('optimizer_config')
-scheduler_config = config.get('scheduler_config')
+# scheduler_config = config.get('scheduler_config')
+training_steps = config.max_epochs * len(data_module.train_dataloader())
+scheduler_config = {
+    "warmup_steps": 0.05 * training_steps,
+    "training_steps": training_steps,
+}
+
 dropout_rate = config.get('dropout_rate', 0.)
 use_features = config.get("use_features", False)
 
@@ -59,17 +66,13 @@ if ckpt:
         ckpt,
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
-        dropout_rate=dropout_rate,
         model=model,
-        use_features=use_features,
     )
 else:
     model = AutoRankingModel(
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
-        dropout_rate=dropout_rate,
         model=model,
-        use_features=use_features,
     )
     
 config_filename = args.config.split('/')[-1][:-4]
@@ -86,7 +89,7 @@ wandb_logger = pl.loggers.WandbLogger(project="JupyterBert")
 trainer = pl.Trainer(
     logger=wandb_logger, 
     accelerator="gpu",
-    max_epochs=10,
+    max_epochs=config.max_epochs,
     devices=[args.device],
     enable_progress_bar=True,
     log_every_n_steps=20,
