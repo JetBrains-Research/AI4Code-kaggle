@@ -98,7 +98,7 @@ class AbstractRankingModel(pl.LightningModule, ABC):
             
             if len(pred_positions) != n_md:
                 assert len(outputs) <= 2
-                pred_positions = torch.cat([pred_positions, torch.zeros(n_md - len(pred_positions)).to(self.device)])
+                n_md = len(pred_positions)
 
             pred_order = OrderBuilder.kaggle_ranker(pred_positions, n_md, n_code)
 
