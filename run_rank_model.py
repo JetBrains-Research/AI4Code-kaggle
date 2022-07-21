@@ -12,12 +12,12 @@ parser.add_argument("device", type=int)
 args = parser.parse_args()
 config = OmegaConf.load(args.config)
 
+print(config)
+
 model = config.get('model', 'distilbert-base-uncased')
 
 cols_to_keep =  [
-    'input_ids', 'attention_mask', 'md_count', 'code_count',
-    'normalized_plot_functions', 'normalized_defined_functions',
-    'normalized_sloc', 'score'
+    'input_ids', 'attention_mask', 'md_count', 'code_count', 'score'
 ]
 
 train_dataset_paths = {
@@ -26,6 +26,7 @@ train_dataset_paths = {
 #     "microsoft/codebert-base": "data/all_dataset/codebert_train_rank_dataset.dat",
 }
 val_dataset_paths = {
+#     'distilbert-base-uncased': "data/all_dataset/distilbert_val_small_rank_dataset.dat",
     'distilbert-base-uncased': "data/all_dataset/distilbert_val_rank_dataset.dat",
 #     'microsoft/unixcoder-base': "data/all_dataset/unixcoder_val_rank_dataset.dat",
 #     "microsoft/codebert-base": "data/all_dataset/codebert_val_rank_dataset.dat",
