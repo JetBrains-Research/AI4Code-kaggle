@@ -30,7 +30,8 @@ val_dataset_paths = {
     'distilbert-base-uncased': "data/all_dataset/distilbert_val_rank_dataset.dat",
     'microsoft/unixcoder-base': "data/all_dataset/unixcoder_val_rank_dataset.dat",
     "microsoft/codebert-base": "data/all_dataset/codebert_val_rank_dataset.dat",
-    "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_val_rank_dataset.dat",
+    "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_val_small_rank_dataset.dat",
+    # "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_val_rank_dataset.dat",
 }
 
 print("Loading train dataset")
@@ -50,7 +51,10 @@ data_module = MarkdownDataModule(
 
 optimizer_config = config.get('optimizer_config')
 # scheduler_config = config.get('scheduler_config')
-training_steps = config.max_epochs * len(data_module.train_dataloader())
+training_steps = config.get(
+    "training_steps",
+    config.max_epochs * len(data_module.train_dataloader())
+)
 scheduler_config = {
     "warmup_steps": 0.05 * training_steps,
     "training_steps": training_steps,
@@ -89,7 +93,7 @@ wandb_logger = pl.loggers.WandbLogger(project="JupyterBert")
 trainer = pl.Trainer(
     logger=wandb_logger, 
     accelerator="gpu",
-    max_epochs=config.max_epochs,
+    max_epochs=config.get("max_epochs", 1),
     devices=[args.device],
     enable_progress_bar=True,
     log_every_n_steps=20,
