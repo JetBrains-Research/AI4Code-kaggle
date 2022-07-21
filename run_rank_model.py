@@ -53,7 +53,7 @@ optimizer_config = config.get('optimizer_config')
 # scheduler_config = config.get('scheduler_config')
 training_steps = config.get(
     "training_steps",
-    config.max_epochs * len(data_module.train_dataloader())
+    config.get("max_epochs", 1) * len(data_module.train_dataloader())
 )
 scheduler_config = {
     "warmup_steps": 0.05 * training_steps,
