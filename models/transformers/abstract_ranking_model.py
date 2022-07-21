@@ -8,11 +8,10 @@ from .utils import extract_value
 
 
 class AbstractRankingModel(pl.LightningModule, ABC):
-    def __init__(self, test_notebook_order=None, ranked_reversed=True):
+    def __init__(self):
         super(AbstractRankingModel, self).__init__()
         self.loss_function = torch.nn.L1Loss()
-        self.test_notebooks_order = test_notebook_order
-        self.ranked_reversed = ranked_reversed
+        self.notebooks_order = {}
 
     @abstractmethod
     def forward(self, batch):
@@ -67,9 +66,6 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                 "cell_id": batch["cell_id"],
             }
 
-            if stage != "test":
-                log["batched_predictions"]["score"] = batch["score"].view(-1)
-
         return log
 
     def _shared_epoch_end(self, outputs, stage):
@@ -86,17 +82,9 @@ class AbstractRankingModel(pl.LightningModule, ABC):
 
         batched_preds = [output["batched_predictions"] for output in outputs]
 
-        if stage != "test":
-            scores = torch.cat([x["score"] * (x["md_count"] + x["code_count"]) for x in batched_preds]).round()
-
-        # preds = torch.cat([x["preds"] * (x["md_count"] + x["code_count"]) for x in batched_preds]).round()
         preds = torch.cat([x["preds"] for x in batched_preds])
         md_counts = torch.cat([x["md_count"] for x in batched_preds])
         code_counts = torch.cat([x["code_count"] for x in batched_preds])
-
-        total_inv, total_max_inv = 0, 0
-        all_invs, all_max_invs = [], []
-
         notebook_ids = np.concatenate([x["notebook_id"] for x in batched_preds])
         cell_ids = np.concatenate([x["cell_id"] for x in batched_preds])
 
@@ -111,49 +99,15 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                 pred_positions = torch.cat([pred_positions, torch.zeros(n_md - len(pred_positions)).to(self.device)])
 
             pred_order = OrderBuilder.kaggle_ranker(pred_positions, n_md, n_code)
-            
-            if stage != "test":
-                true_positions = scores[loc]
-                
-                if len(true_positions) != n_md:
-                    assert len(outputs) <= 2
-                    true_positions = torch.cat([true_positions, torch.zeros(n_md - len(true_positions)).to(self.device)])
 
-                true_order = OrderBuilder.kaggle_ranker(true_positions, n_md, n_code)
-                inv, max_inv = OrderBuilder.kendall_tau(true_order, pred_order)
-                all_invs.append(inv)
-                all_max_invs.append(max_inv)
-                total_inv += inv
-                total_max_inv += max_inv
-            else:
-                cell_positions = cell_ids[loc]
-                for i, prediction in enumerate(pred_order):
-                    if prediction >= n_code:
-                        pred_order[i] = cell_positions[prediction - n_code]
+            cell_positions = cell_ids[loc]
+            for i, prediction in enumerate(pred_order):
+                if prediction >= n_code:
+                    pred_order[i] = cell_positions[prediction - n_code]
 
-                self.test_notebooks_order[notebook_id] = pred_order
+            self.notebooks_order[notebook_id] = pred_order
 
-        if stage != "test":
-            all_invs = np.array(all_invs)
-            all_max_invs = np.array(all_max_invs)
-            inds = np.arange(len(all_invs))
-            all_kt = []
-            N_BOOTSTRAP = 10_000
-            PERCENTILES = [5, 10, 25, 50, 75, 90, 95]
-            
-            for _ in range(N_BOOTSTRAP):
-                inds_subset = np.random.choice(inds, len(inds))
-                invs_sum = all_invs[inds_subset].sum()
-                max_invs_sum = all_max_invs[inds_subset].sum()
-                all_kt.append(1 - 4 * invs_sum / max_invs_sum)
-            
-            kt = 1 - 4 * total_inv / total_max_inv
-            log[f"{stage}_kendall_tau"] = kt
-            log[f"{stage}_kendall_tau_std"] = np.std(all_kt)
-
-            all_kt = sorted(all_kt)
-            for p in PERCENTILES:
-                log[f"{stage}_kendall_tau_{p}p"] = sorted(all_kt)[N_BOOTSTRAP * p // 100]
-
+        if stage == "val":
+            kt = OrderBuilder.evaluate_notebooks(self.notebooks_order)
+            log[f"val_kendall_tau"] = kt
             self.log_dict(log, on_step=False, on_epoch=True)
-

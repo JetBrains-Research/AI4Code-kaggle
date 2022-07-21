@@ -1,8 +1,11 @@
 from collections import defaultdict
 from bisect import bisect
+from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
+import json
 
 
 class OrderBuilder:
@@ -118,3 +121,35 @@ class OrderBuilder:
         n = len(gt)
         max_inv = n * (n - 1)
         return inv, max_inv
+
+    @staticmethod
+    def get_json(notebook_id):
+        notebook_json = notebook_id + ".json"
+        p = Path("../raw_data/train/") / notebook_json
+        d = json.load(open(p, 'r'))
+        return d
+
+    @staticmethod
+    def get_cell_types(notebook_id):
+        return OrderBuilder.get_json(notebook_id)['cell_type']
+
+    @staticmethod
+    def evaluate_notebooks(notebooks_order):
+        orders = pd.read_csv("../raw_data/train_orders.csv").set_index("id")
+        total_inv = 0
+        total_max_inv = 0
+        for notebook, pred_order in notebooks_order.items():
+            true_order = orders.cell_order[notebook].split()
+
+            cell_types = OrderBuilder.get_cell_types(notebook)
+            code_cells = [cell_id for cell_id in true_order if cell_types[cell_id] == "code"]
+
+            for i, pred in enumerate(pred_order):
+                if isinstance(pred, str):
+                    continue
+                pred_order[i] = code_cells[pred]
+
+            inv, max_inv = OrderBuilder.kendall_tau(true_order, pred_order)
+            total_inv += inv
+            total_max_inv += max_inv
+        return 1 - 4 * total_inv / total_max_inv

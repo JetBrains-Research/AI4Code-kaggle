@@ -11,11 +11,10 @@ class AutoRankingModel(AbstractRankingModel):
             optimizer_config=None,
             scheduler_config=None,
             dropout_rate=0.0,
-            test_notebook_order=None,
             hidden_size=100,
             use_features=False
     ):
-        super(AutoRankingModel, self).__init__(test_notebook_order=test_notebook_order)
+        super(AutoRankingModel, self).__init__()
 
         self.features = [
             "normalized_plot_functions",
