@@ -5,7 +5,7 @@ optimizer_config:
 
 
 model: microsoft/graphcodebert-base
-batch_size: 32
+batch_size: 30
 
 training_steps: 5000
 val_check_interval: 500
