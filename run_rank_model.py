@@ -75,7 +75,7 @@ else:
         model=model,
     )
     
-config_filename = args.config.split('/')[-1][:-4]
+config_filename = args.config[7:-4].replace("/", "_")
 checkpoint_callback = pl.callbacks.ModelCheckpoint(
     dirpath=f'checkpoints/{config_filename}/',
     filename='{epoch:02d}-{step}-{val_kendall_tau:.5f}',
