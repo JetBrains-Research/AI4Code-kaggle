@@ -29,4 +29,4 @@ tokenizer = AutoTokenizer.from_pretrained(args.model)
 df[args.model] = df['cleaned_source'].progress_map(
     lambda doc: tokenize_doc(doc, tokenizer),
 )
-df.save_feather(args.path)
+df.to_feather(args.path)
