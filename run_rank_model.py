@@ -30,8 +30,8 @@ val_dataset_paths = {
     'distilbert-base-uncased': "data/all_dataset/distilbert_val_rank_dataset.dat",
     'microsoft/unixcoder-base': "data/all_dataset/unixcoder_val_rank_dataset.dat",
     "microsoft/codebert-base": "data/all_dataset/codebert_val_rank_dataset.dat",
-    "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_val_small_rank_dataset.dat",
-    # "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_val_rank_dataset.dat",
+    # "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_val_small_rank_dataset.dat",
+    "microsoft/graphcodebert-base": "data/all_dataset/graphcodebert_val_rank_dataset.dat",
 }
 
 print("Loading train dataset")
