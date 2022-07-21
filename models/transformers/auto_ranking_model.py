@@ -30,6 +30,7 @@ class AutoRankingModel(AbstractRankingModel):
 
         self.optimizer_config = optimizer_config
         self.scheduler_config = scheduler_config
+        self.optimizer = None
         self.scheduler = None
 
         # self.learning_rate = learning_rate
@@ -46,7 +47,7 @@ class AutoRankingModel(AbstractRankingModel):
         return preds
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(
+        self.optimizer = torch.optim.AdamW(
             filter(lambda p: p.requires_grad, self.parameters()),
             # lr=self.learning_rate,
             **self.optimizer_config,
@@ -54,9 +55,9 @@ class AutoRankingModel(AbstractRankingModel):
 
         if self.scheduler_config is not None:
             self.scheduler = get_linear_schedule_with_warmup(
-                optimizer,
+                self.optimizer,
                 num_warmup_steps=self.scheduler_config["warmup_steps"],
                 num_training_steps=self.scheduler_config["training_steps"],
             )
 
-        return optimizer
+        return self.optimizer

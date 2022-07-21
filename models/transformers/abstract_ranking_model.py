@@ -26,6 +26,8 @@ class AbstractRankingModel(pl.LightningModule, ABC):
         log = self._shared_step(batch, batch_idx, "train")
         if self.scheduler is not None:
             self.scheduler.step()
+            self.log("lr", self.optimizer.param_groups[0]['lr'], on_step=True, on_epoch=False, prog_bar=True)
+
         return log
 
     def training_epoch_end(self, outputs):
