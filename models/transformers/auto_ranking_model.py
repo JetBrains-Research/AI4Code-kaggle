@@ -59,5 +59,8 @@ class AutoRankingModel(AbstractRankingModel):
                 num_warmup_steps=self.scheduler_config["warmup_steps"],
                 num_training_steps=self.scheduler_config["training_steps"],
             )
+            print(f"Skipping {self.scheduler_config['cur_step']} steps in scheduler")
+            for _ in range(self.scheduler_config['cur_step']):
+                self.scheduler.step()
 
         return self.optimizer

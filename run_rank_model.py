@@ -58,6 +58,7 @@ training_steps = config.get(
 scheduler_config = {
     "warmup_steps": 0.05 * training_steps,
     "training_steps": training_steps,
+    "cur_step": config.get("cur_step", 0)
 }
 
 dropout_rate = config.get('dropout_rate', 0.)
@@ -86,6 +87,12 @@ checkpoint_callback = pl.callbacks.ModelCheckpoint(
     save_top_k=-1,
     save_on_train_epoch_end=False,
 )
+checkpoint_train_callback = pl.callbacks.ModelCheckpoint(
+    dirpath=f'checkpoints/{config_filename}/',
+    filename='{epoch:02d}-{step}-{val_kendall_tau:.5f}',
+    save_top_k=-1,
+    save_on_train_epoch_end=True,
+)
 
 # wandb_logger = pl.loggers.WandbLogger(project="JupyterBert", entity="jbr_jupyter")
 wandb_logger = pl.loggers.WandbLogger(project="JupyterBert")
@@ -98,8 +105,9 @@ trainer = pl.Trainer(
     enable_progress_bar=True,
     log_every_n_steps=20,
     val_check_interval=config.get("val_check_interval", 10000),
-    callbacks=[checkpoint_callback],
+    callbacks=[checkpoint_callback, checkpoint_train_callback],
     accumulate_grad_batches=config.get("accumulate_grad_batches", 1),
+    resume_from_checkpoint=ckpt,
 )
 
 trainer.fit(model, data_module)
