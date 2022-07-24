@@ -2,6 +2,7 @@ import re
 
 import nltk
 import pandas as pd
+import tldextract
 from bs4 import BeautifulSoup
 from markdown import markdown
 from nltk.corpus import stopwords
@@ -88,19 +89,99 @@ def preprocess_dataframe(df: DataFrame) -> DataFrame:
     return df.merge(processed_data_df, on=['id', 'cell_id'], how='left')
 
 
+class ImprovedMDPProcessor:
+
+    def __init__(self):
+        self.tag_dict = {
+            'a': '@',
+            'b': '**',
+            'code': "'''",
+            'em': '!!',
+            'h1': '-',
+            'h2': '--',
+            'h3': '---',
+            'h4': '----',
+            'h5': '-----',
+            'h6': '------',
+            'hr': '_-_',
+            'i': '__',
+            'strong': '!-',
+            'title': '!-!',
+            'font': '^^',
+            'img': '§',
+            'ol': '№',
+            'ul': '$',
+            'pre': '±',
+            'section': '<->',
+            'span': '<>', }
+
+    def _process_attrs(self, soup):
+        for tag in soup.findAll():
+            if tag.name not in self.tag_dict.keys():
+                tag.unwrap()
+            elif len(tag.attrs) > 0:
+                if 'href' in tag.attrs:
+                    tag = self._process_links(tag)
+                if 'alt' in tag.attrs:
+                    tag = self._process_img(tag)
+
+                tag.attrs = {}
+
+        return soup
+
+    @staticmethod
+    def _process_links(tag):
+        link = tag.attrs['href']
+        link = tldextract.extract(link)
+
+        tag.string = tag.text + ' ' + link[1] + ' ' + link[2]
+
+        return tag
+
+    @staticmethod
+    def _process_img(tag):
+        link = tag.attrs['alt']
+        tag.string = tag.text + ' ' + link
+
+        return tag
+
+    def process(self, md_string):
+        soup = BeautifulSoup(markdown(md_string), "html.parser")
+        soup = self._process_attrs(soup)
+
+        for node in soup.find_all(text=lambda x: x.strip()):
+            node.replace_with(kaggle_cleaning(node))
+
+        md_string = str(soup)
+
+        pattern = r''
+        for tag, new_tag in self.tag_dict.items():
+            md_string = md_string.replace(f'<{tag}>', f' {new_tag} ')
+            pattern += f'</{tag}>|'
+            pattern += f'<{tag}/>|'
+
+        md_string = re.sub(pattern[:-1], "", md_string)
+        md_string = re.sub(r"\s+", " ", md_string, flags=re.I)
+        md_string = md_string.strip()
+
+        return md_string
+
+
 class DatasetProcessor:
-    def __init__(self, path):
-        self.df = pd.read_feather(path)
-        self.mapping = {"markdown": MdProcessor}
+    def __init__(self, path, processor=ImprovedMDPProcessor):
+        self.df = pd.read_feather(path) if isinstance(path, str) else path
+        self.mapping = {"markdown": processor()}
 
     @property
     def dataset(self):
         return self.df
 
     def process_dataset(self):
-        for cell_type, processor in self.mapping:
-            md_mask = self.df["cell_type"] == cell_type
-            self.df["processed_source"] = None
-            self.df.loc[md_mask, "processed_source"] = self.df[md_mask].source.apply(
+        for cell_type, processor in self.mapping.items():
+            cell_mask = self.df["cell_type"] == cell_type
+            self.df = self.df.assign(processed_source='')
+            # self.df.loc[:, ""] = None
+            self.df.loc[cell_mask, "processed_source"] = self.df[cell_mask].source.apply(
                 lambda row: processor.process(row)
             )
+        return self.df
