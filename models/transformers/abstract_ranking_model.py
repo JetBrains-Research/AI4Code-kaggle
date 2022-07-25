@@ -67,10 +67,12 @@ class AbstractRankingModel(pl.LightningModule, ABC):
                 "notebook_id": batch["notebook_id"],
                 "cell_id": batch["cell_id"],
             }
-
         return log
 
     def _shared_epoch_end(self, outputs, stage):
+        if len(outputs) == 0: #resume from checkpoint
+            return
+        
         log = {}
         for metric in outputs[0]:
             if metric == "loss" or metric == "batched_predictions":
