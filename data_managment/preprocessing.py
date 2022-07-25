@@ -118,7 +118,10 @@ class ImprovedMDPProcessor:
     def _process_attrs(self, soup):
         for tag in soup.findAll():
             if tag.name not in self.tag_dict.keys():
-                tag.unwrap()
+                try:
+                    tag.unwrap()
+                except ValueError:
+                    pass
             elif len(tag.attrs) > 0:
                 if 'href' in tag.attrs:
                     tag = self._process_links(tag)
