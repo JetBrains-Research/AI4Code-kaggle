@@ -166,6 +166,9 @@ class ImprovedMDPProcessor:
 
         return md_string
 
+    def process_code(self, code_string):
+        return kaggle_cleaning(code_string[:1024])
+
 
 class DatasetProcessor:
     def __init__(self, path, processor=ImprovedMDPProcessor):
@@ -183,5 +186,8 @@ class DatasetProcessor:
             # self.df.loc[:, ""] = None
             self.df.loc[cell_mask, "processed_source"] = self.df[cell_mask].source.progress_apply(
                 lambda row: processor.process(row)
+            )
+            self.df.loc[~cell_mask, "processed_source"] = self.df[~cell_mask].source.progress_apply(
+                lambda row: processor.process_code(row)
             )
         return self.df
