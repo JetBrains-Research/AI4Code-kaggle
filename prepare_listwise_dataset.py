@@ -72,6 +72,7 @@ def prepare_listwise_dataset(model_name, input_file):
     df = pd.read_feather(input_file, columns=["id", "cell_id", "cell_type", model_name, "score"])
     df["tokens"] = df[model_name].progress_apply(lambda tokens: list(map(int, tokens.split())))
 
+    print("Trimming code")
     code_trimmed = df.groupby("id").apply(
         lambda group: trim_tokens(
             group,
@@ -84,6 +85,7 @@ def prepare_listwise_dataset(model_name, input_file):
             force=True
         )
     )
+    print("Trimming markdown")
     md_trimmed = df.groupby("id").apply(
         lambda group: trim_tokens(
             group,
@@ -100,11 +102,12 @@ def prepare_listwise_dataset(model_name, input_file):
     df.loc[df.cell_type == "code", "trimmed_tokens"] = code_trimmed.values
     df.loc[df.cell_type == "markdown", "trimmed_tokens"] = md_trimmed.values
 
+    print("Grouping notebooks")
     datapoints = df.groupby("id").apply(prepare_datapoint)
     for notebook_id, datapoint in datapoints.iteritems():
         datapoint.notebook_id = notebook_id
 
-    return datapoints
+    return datapoints.values
 
 
 if __name__ == '__main__':

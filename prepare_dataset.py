@@ -63,10 +63,10 @@ def build_input_ids(row, cls_token_id, sep_token_id, pad_token_id, md_len, code_
 
 
 def main(args):
-    df = pd.read_feather(args.input_fth, columns=["id", "cell_id", "cell_type", args.model, "score"])
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    df = pd.read_feather(args.input_fth, columns=["id", "cell_id", "cell_type", args.model_name, "score"])
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
 
-    df["tokens"] = df[args.model].progress_apply(lambda tokens: list(map(int, tokens.split())))
+    df["tokens"] = df[args.model_name].progress_apply(lambda tokens: list(map(int, tokens.split())))
     code_subsamples = df.groupby("id").apply(
         lambda group: get_code_subsample(group, tokenizer.sep_token_id)
     )

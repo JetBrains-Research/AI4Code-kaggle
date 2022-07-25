@@ -18,17 +18,17 @@ config = OmegaConf.load(args.config)
 
 print(config)
 
-model = config.get('model', 'distilbert-base-uncased')
-tokenizer = AutoTokenizer.from_pretrained(model)
+model_name = config.get('model', 'distilbert-base-uncased')
+tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 print("Loading train dataset")
 train_dataset = NotebookDataset(
-    prepare_listwise_dataset(model, "data/all_dataset/train_df.fth"),
+    prepare_listwise_dataset(model_name, "data/all_dataset/train_df.fth"),
     tokenizer.pad_token_id
 )
 print("Loading val dataset")
 val_dataset = NotebookDataset(
-    prepare_listwise_dataset(model, "data/all_dataset/val_df.fth"),
+    prepare_listwise_dataset(model_name, "data/all_dataset/val_df.fth"),
     tokenizer.pad_token_id,
 )
 
@@ -69,13 +69,13 @@ if ckpt:
     print(f"Loading from {ckpt}")
     model = ListwiseModel.load_from_checkpoint(
         ckpt,
-        model_name=model,
+        model_name=model_name,
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
     )
 else:
     model = ListwiseModel(
-        model_name=model,
+        model_name=model_name,
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
     )
@@ -107,7 +107,7 @@ trainer = pl.Trainer(
     val_check_interval=config.get("val_check_interval", 10000),
     callbacks=[checkpoint_callback, checkpoint_train_callback, CleanListwisePredictionCallback()],
     accumulate_grad_batches=config.get("accumulate_grad_batches", 1),
-    ckpt_path=ckpt,
+    # resume_from_checkpoint=ckpt,
 )
 
 trainer.fit(model, train_loader, val_loader)
