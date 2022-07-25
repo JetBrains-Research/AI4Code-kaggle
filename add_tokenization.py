@@ -26,7 +26,7 @@ def tokenize_doc(doc, tokenizer):
 
 df = pd.read_feather(args.path)
 tokenizer = AutoTokenizer.from_pretrained(args.model)
-df[args.model] = df['cleaned_source'].progress_map(
+df[args.model] = df['processed_source'].progress_map(
     lambda doc: tokenize_doc(doc, tokenizer),
 )
 df.to_feather(args.path)

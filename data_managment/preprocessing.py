@@ -181,7 +181,7 @@ class DatasetProcessor:
             cell_mask = self.df["cell_type"] == cell_type
             self.df = self.df.assign(processed_source='')
             # self.df.loc[:, ""] = None
-            self.df.loc[cell_mask, "processed_source"] = self.df[cell_mask].source.apply(
+            self.df.loc[cell_mask, "processed_source"] = self.df[cell_mask].source.progress_apply(
                 lambda row: processor.process(row)
             )
         return self.df
