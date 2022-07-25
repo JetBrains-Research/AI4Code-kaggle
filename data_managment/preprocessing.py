@@ -1,18 +1,20 @@
 import re
-import json
 
+import nltk
 import pandas as pd
-from pandas import DataFrame
+import tldextract
 from bs4 import BeautifulSoup
 from markdown import markdown
-
-from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
-import nltk
+from nltk.stem import WordNetLemmatizer
+from pandas import DataFrame
+from tqdm import tqdm
 
 nltk.download("wordnet")
 nltk.download("omw-1.4")
 nltk.download('stopwords')
+
+tqdm.pandas()
 
 stemmer = WordNetLemmatizer()
 stop_words = set(stopwords.words('english'))
@@ -67,33 +69,108 @@ class MdProcessor:
 
     @staticmethod
     def rule2text(search_fun):
-        return lambda s: [i.text for i in s.find_all(search_fun)]
+        return lambda s: clean_text(" ".join([i.text for i in s.find_all(search_fun)]))
 
     def process(self, md_string):
         soup = BeautifulSoup(markdown(md_string), "html.parser")
         res = {}
+
         for name, fun in self.features.items():
             res[name] = fun(soup)
 
-        return json.dumps(res)
+        return res
 
 
 def preprocess_dataframe(df: DataFrame) -> DataFrame:
     md_processor = MdProcessor()
-    md_mask = df["cell_type"] == "markdown"
+    df_md = df.groupby('cell_type').get_group('markdown').set_index(['id', 'cell_id'])
+    processed_data_df = df_md.source.apply(lambda x: pd.Series(md_processor.process(x)))
 
-    df["processed_source"] = None
-    df.loc[md_mask, "processed_source"] = df[md_mask].source.apply(
-        lambda row: md_processor.process(row)
-    )
+    return df.merge(processed_data_df, on=['id', 'cell_id'], how='left')
 
-    return df
+
+class ImprovedMDPProcessor:
+
+    def __init__(self):
+        self.tag_dict = {
+            'a': '@',
+            'b': '**',
+            'code': "'''",
+            'em': '!!',
+            'h1': '-',
+            'h2': '--',
+            'h3': '---',
+            'h4': '----',
+            'h5': '-----',
+            'h6': '------',
+            'hr': '_-_',
+            'i': '__',
+            'strong': '!-',
+            'title': '!-!',
+            'font': '^^',
+            'img': '§',
+            'ol': '№',
+            'ul': '$',
+            'pre': '±',
+            'section': '<->',
+            'span': '<>', }
+
+    def _process_attrs(self, soup):
+        for tag in soup.findAll():
+            if tag.name not in self.tag_dict.keys():
+                tag.unwrap()
+            elif len(tag.attrs) > 0:
+                if 'href' in tag.attrs:
+                    tag = self._process_links(tag)
+                if 'alt' in tag.attrs:
+                    tag = self._process_img(tag)
+
+                tag.attrs = {}
+
+        return soup
+
+    @staticmethod
+    def _process_links(tag):
+        link = tag.attrs['href']
+        link = tldextract.extract(link)
+
+        tag.string = tag.text + ' ' + link[1] + ' ' + link[2]
+
+        return tag
+
+    @staticmethod
+    def _process_img(tag):
+        link = tag.attrs['alt']
+        tag.string = tag.text + ' ' + link
+
+        return tag
+
+    def process(self, md_string):
+        soup = BeautifulSoup(markdown(md_string), "html.parser")
+        soup = self._process_attrs(soup)
+
+        for node in soup.find_all(text=lambda x: x.strip()):
+            node.replace_with(kaggle_cleaning(node))
+
+        md_string = str(soup)
+
+        pattern = r''
+        for tag, new_tag in self.tag_dict.items():
+            md_string = md_string.replace(f'<{tag}>', f' {new_tag} ')
+            pattern += f'</{tag}>|'
+            pattern += f'<{tag}/>|'
+
+        md_string = re.sub(pattern[:-1], "", md_string)
+        md_string = re.sub(r"\s+", " ", md_string, flags=re.I)
+        md_string = md_string.strip()
+
+        return md_string
 
 
 class DatasetProcessor:
-    def __init__(self, path):
-        self.df = pd.read_feather(path)
-        self.mapping = {"markdown": MdProcessor()}
+    def __init__(self, path, processor=ImprovedMDPProcessor):
+        self.df = pd.read_feather(path) if isinstance(path, str) else path
+        self.mapping = {"markdown": processor()}
 
     @property
     def dataset(self):
@@ -101,8 +178,10 @@ class DatasetProcessor:
 
     def process_dataset(self):
         for cell_type, processor in self.mapping.items():
-            md_mask = self.df["cell_type"] == cell_type
-            self.df["processed_source"] = None
-            self.df.loc[md_mask, "processed_source"] = self.df[md_mask].source.apply(
+            cell_mask = self.df["cell_type"] == cell_type
+            self.df = self.df.assign(processed_source='')
+            # self.df.loc[:, ""] = None
+            self.df.loc[cell_mask, "processed_source"] = self.df[cell_mask].source.apply(
                 lambda row: processor.process(row)
             )
+        return self.df
