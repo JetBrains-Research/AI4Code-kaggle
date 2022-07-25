@@ -22,7 +22,7 @@ class TranslationDataset(torch.utils.data.Dataset):
         return len(self.original_list)
 
     def __getitem__(self, i):
-        return self.original_list[i]
+        return self.original_list[i][:500]
 
 
 class Translator:
@@ -33,7 +33,7 @@ class Translator:
             self.translation_model,
             self.translation_tokenizer,
             device=device,
-            batch_size=batch_size
+            batch_size=batch_size,
         )
 
     def translate_sentences(self, sentences):
