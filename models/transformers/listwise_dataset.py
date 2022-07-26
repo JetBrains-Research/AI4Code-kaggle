@@ -27,21 +27,20 @@ class NotebookDataset(torch.utils.data.Dataset):
             self.notebook_indices[cur_len:cur_len + n_md] = i
             cur_len += n_md
 
-        self.selected_permutations = []
+        self.selected_permutations = torch.zeros(self.n_examples, self.select_md, dtype=torch.long)
         self.reset_dataset()
 
     def __len__(self):
         return self.n_examples
 
     def reset_dataset(self):
-        self.selected_permutations = []
+        cur_len = 0
         for i, datapoint in enumerate(self.datapoints):
             n_md = datapoint.md_tokens.size(0)
-            self.selected_permutations.extend(
-                torch.cat([
-                    torch.randperm(n_md) for _ in range(self.reps)
-                ]).view(-1, self.select_md)
-            )
+            self.selected_permutations[cur_len:cur_len + n_md, :] = torch.cat([
+                torch.randperm(n_md) for _ in range(self.reps)
+            ]).view(-1, self.select_md)
+            cur_len += n_md
 
     @staticmethod
     def select_n(tokens, scores, max_len, keep_order):
