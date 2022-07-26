@@ -34,7 +34,7 @@ val_dataset = NotebookDataset(
 
 train_loader = torch.utils.data.DataLoader(
     train_dataset,
-    batch_size=BATCH_SIZE,
+    batch_size=config.get('batch_size', 32),
     collate_fn=collate_fn,
     pin_memory=False,
     shuffle=True,
@@ -42,7 +42,7 @@ train_loader = torch.utils.data.DataLoader(
 )
 val_loader = torch.utils.data.DataLoader(
     val_dataset,
-    batch_size=BATCH_SIZE,
+    batch_size=config.get('batch_size', 32),
     collate_fn=collate_fn,
     pin_memory=False,
     shuffle=False,
