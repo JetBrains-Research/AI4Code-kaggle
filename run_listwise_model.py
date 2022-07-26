@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import pytorch_lightning as pl
 import torch
 from transformers import AutoTokenizer
@@ -79,7 +81,26 @@ else:
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
     )
-    
+
+
+def fix_state(state_dict):
+    new_state = OrderedDict()
+    for k, v in state_dict.items():
+        if k.startswith("distill_bert"):
+            new_state[k.replace("distill_bert", "model")] = v
+        elif k.startswith("dense"):
+            new_state[k.replace("dense", "linear")] = v
+        else:
+            raise ValueError(f"Unexpected key: {k}")
+    return new_state
+
+
+automodel_checkpoint = config.get("automodel_checkpoint")
+if automodel_checkpoint:
+    fixed_state = fix_state(torch.load(automodel_checkpoint)["state_dict"])
+    model.load_state_dict(fixed_state)
+
+
 config_filename = args.config[7:-4].replace("/", "_")
 checkpoint_callback = pl.callbacks.ModelCheckpoint(
     dirpath=f'checkpoints/{config_filename}/',
