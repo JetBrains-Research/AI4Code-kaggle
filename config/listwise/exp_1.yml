@@ -11,4 +11,4 @@ max_epochs: 5
 val_check_interval: 10000
 accumulate_grad_batches: 1
 
-automodel_checkpoint: "checkpoint/graphcodebert_train_exp_0_epoch_4/epoch=04-step=304412-val_kendall_tau=0.83338.ckpt"
+automodel_checkpoint: "checkpoints/graphcodebert_train_exp_0_epoch_4/epoch=04-step=304412-val_kendall_tau=0.83338.ckpt"
