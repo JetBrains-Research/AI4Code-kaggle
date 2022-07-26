@@ -38,7 +38,7 @@ train_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn,
     pin_memory=False,
     shuffle=True,
-    num_workers=4,
+    num_workers=1,
 )
 val_loader = torch.utils.data.DataLoader(
     val_dataset,
@@ -46,7 +46,7 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn,
     pin_memory=False,
     shuffle=False,
-    num_workers=4,
+    num_workers=1,
 )
 
 optimizer_config = config.get('optimizer_config')
