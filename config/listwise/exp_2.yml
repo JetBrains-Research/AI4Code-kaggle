@@ -1,0 +1,14 @@
+optimizer_config:
+    lr: 3e-5
+    eps: 1e-08
+    weight_decay: 1e-02
+
+
+model: microsoft/graphcodebert-base
+batch_size: 30
+
+max_epochs: 3
+val_check_interval: 20000
+accumulate_grad_batches: 1
+
+automodel_checkpoint: "checkpoints/graphcodebert_train_exp_0_epoch_4/epoch=04-step=304412-val_kendall_tau=0.83338.ckpt"
