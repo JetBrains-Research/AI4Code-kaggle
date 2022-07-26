@@ -96,6 +96,8 @@ class ListwiseModel(pl.LightningModule):
 
             for preds, cell_ids, notebook_id in zip(pred, batch["cell_ids"], batch["notebook_id"]):
                 for val, cell_id in zip(preds, cell_ids):
+                    if not isinstance(cell_id, str):
+                        cell_id = int(cell_id)
                     self.notebook_predictions[notebook_id][cell_id].append(val)
 
         return {"loss": loss}
@@ -123,7 +125,14 @@ class ListwiseModel(pl.LightningModule):
                 else:
                     n_code = self.n_code[n_id]
 
-                code_ranks = [((i + 1) / (n_code + 1), i) for i in range(n_code)]
+                cell_ids = list(predictions.keys())
+
+                if isinstance(cell_ids[0], str):
+                    code_ranks = [((i + 1) / (n_code + 1), i) for i in range(n_code)]
+                else:
+                    code_ids = [i for i in range(n_code + len(cell_ids)) if i not in cell_ids]
+                    code_ranks = [((i + 1) / (n_code + 1), ind) for i, ind in enumerate(code_ids)]
+
                 md_ranks = [(
                     np.mean([
                         extract_value(x) for x in preds
@@ -134,8 +143,16 @@ class ListwiseModel(pl.LightningModule):
                 order = [cell_id for _, cell_id in ranks]
                 orders[n_id] = order
 
+
             self.built_orders = orders
-            kt = OrderBuilder.evaluate_notebooks(orders)
+            # kt = OrderBuilder.evaluate_notebooks(orders)
+            total_inv, total_max_inv = 0, 0
+            for order in orders.values():
+                true_order = list(range(len(order)))
+                inv, max_inv = OrderBuilder.kendall_tau(true_order, order)
+                total_inv += inv
+                total_max_inv += max_inv
+            kt = 1 - 4 * total_inv / total_max_inv
             self.log(f"{stage}_kendall_tau", kt, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
