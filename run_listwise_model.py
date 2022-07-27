@@ -154,14 +154,20 @@ print(config)
 model_name = config.get('model', 'distilbert-base-uncased')
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
+md_total = config.get("md_total", 256)
+md_len = config.get("md_len", 32)
+code_len = config.get("code_len", 32)
+
+code_ids = pickle.load(open("data/300k_dataset/code_ids.pkl", "rb"))
+
 print("Loading train dataset")
-train_dataset = pickle.load(open("data/300k_dataset/train_128_32_graphcodebert.pkl", "rb"))
+train_dataset = pickle.load(open(f"data/300k_dataset/train_{md_len}_{code_len}_graphcodebert.pkl", "rb"))
 # train_dataset = NotebookDataset(
 #     prepare_listwise_dataset(model_name, "data/all_dataset/train_df.fth"),
 #     tokenizer.pad_token_id
 # )
 print("Loading val dataset")
-val_dataset = pickle.load(open("data/300k_dataset/val_128_32_graphcodebert.pkl", "rb"))
+val_dataset = pickle.load(open(f"data/300k_dataset/val_{md_len}_{code_len}_graphcodebert.pkl", "rb"))
 # val_dataset = NotebookDataset(
 #     prepare_listwise_dataset(model_name, "data/all_dataset/val_df.fth"),
 #     tokenizer.pad_token_id,
@@ -212,17 +218,21 @@ if ckpt:
     print(f"Loading from {ckpt}")
     model = ListwiseModel.load_from_checkpoint(
         ckpt,
+        md_len=md_len,
+        md_total=md_total,
         model_name=model_name,
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
-        n_code=n_code,
+        code_ids=code_ids,
     )
 else:
     model = ListwiseModel(
+        md_len=md_len,
+        md_total=md_total,
         model_name=model_name,
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
-        n_code=n_code,
+        code_ids=code_ids,
     )
 
 
