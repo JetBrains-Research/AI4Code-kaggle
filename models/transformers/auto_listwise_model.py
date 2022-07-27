@@ -14,11 +14,17 @@ class ListwiseModel(pl.LightningModule):
     def __init__(
             self,
             model_name,
+            md_len,
+            md_total,
             optimizer_config=None,
             scheduler_config=None,
-            n_code=None,
+            code_ids=None,
     ):
         super(ListwiseModel, self).__init__()
+        
+        self.md_len = md_len
+        self.md_total = md_total
+        
         self.model_name = model_name
         self.model = AutoModel.from_pretrained(model_name)
         self.linear = torch.nn.Linear(768, 1)
@@ -31,7 +37,7 @@ class ListwiseModel(pl.LightningModule):
 
         self.notebook_predictions = self._clean_notebook_predictions()
         self.built_orders = {}
-        self.n_code = n_code
+        self.code_ids = code_ids
 
     @staticmethod
     def _clean_notebook_predictions():
@@ -51,10 +57,10 @@ class ListwiseModel(pl.LightningModule):
         embeddings = embeddings * attention_mask.unsqueeze(-1)
 
         # BATCH_SIZE x N_MD x MD_LEN x EMB_SIZE
-        md_embeddings = embeddings[:, :MD_TOTAL, :].view(batch_size, -1, MD_LEN, EMB_SIZE)
+        md_embeddings = embeddings[:, :self.md_total, :].view(batch_size, -1, self.md_len, EMB_SIZE)
 
         # BATCH_SIZE x N_MD
-        md_counts = attention_mask[:, :MD_TOTAL].view(batch_size, -1, MD_LEN).sum(-1)
+        md_counts = attention_mask[:, :self.md_total].view(batch_size, -1, self.md_len).sum(-1)
 
         # BATCH_SIZE x N_MD x EMB_SIZE
         md_embeddings = md_embeddings.sum(-2) / (md_counts.unsqueeze(-1) + 1e-9)
@@ -90,11 +96,15 @@ class ListwiseModel(pl.LightningModule):
         #         loss = ((pred - gt) * loss_mask).abs().sum() / loss_mask.sum()
         loss = self.loss_function(pred, gt)
 
-        self.log(f"{stage}/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
+        if stage == "train":
+            self.log(f"{stage}/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
 
         if stage != "train":
 
             for preds, cell_ids, notebook_id in zip(pred, batch["cell_ids"], batch["notebook_id"]):
+                if len(preds) == 1:
+                    cell_ids = [cell_ids]
+                    
                 for val, cell_id in zip(preds, cell_ids):
                     if not isinstance(cell_id, str):
                         cell_id = int(cell_id)
@@ -116,21 +126,17 @@ class ListwiseModel(pl.LightningModule):
             orders = {}
 
             for n_id, predictions in self.notebook_predictions.items():
-                if self.n_code is None:
-                    n_code = len([
-                        cell_id
-                        for cell_id, cell_type in OrderBuilder.get_cell_types(n_id).items()
-                        if cell_type == "code"
-                    ])
+                if self.code_ids is None:
+                    n_code = ... # TODO: fix
                 else:
-                    n_code = self.n_code[n_id]
+                    code_ids = self.code_ids[n_id]
+                    n_code = len(code_ids)
 
                 cell_ids = list(predictions.keys())
 
                 if isinstance(cell_ids[0], str):
                     code_ranks = [((i + 1) / (n_code + 1), i) for i in range(n_code)]
                 else:
-                    code_ids = [i for i in range(n_code + len(cell_ids)) if i not in cell_ids]
                     code_ranks = [((i + 1) / (n_code + 1), ind) for i, ind in enumerate(code_ids)]
 
                 md_ranks = [(
@@ -147,8 +153,8 @@ class ListwiseModel(pl.LightningModule):
             self.built_orders = orders
             # kt = OrderBuilder.evaluate_notebooks(orders)
             total_inv, total_max_inv = 0, 0
-            for order in orders.values():
-                true_order = list(range(len(order)))
+            for n_id, order in orders.items():
+                true_order = sorted(order)
                 inv, max_inv = OrderBuilder.kendall_tau(true_order, order)
                 total_inv += inv
                 total_max_inv += max_inv

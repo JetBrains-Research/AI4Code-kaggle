@@ -9,9 +9,140 @@ from models.transformers.listwise_dataset import NotebookDataset, collate_fn
 from prepare_listwise_dataset import prepare_listwise_dataset
 import argparse
 from omegaconf import OmegaConf
+import pickle
+import numpy as np
+from dataclasses import dataclass
 
 from prepare_listwise_dataset_constants import BATCH_SIZE
 
+
+@dataclass
+class ProcessedNotebook:
+    code_tokens: list
+    code_scores: list
+    md_tokens: torch.tensor
+    md_scores: torch.tensor
+
+    md_cell_ids: np.ndarray
+
+    n_md: int
+    n_code: int
+    notebook_id: str = ""
+        
+class NotebookDataset(torch.utils.data.Dataset):
+
+    def __init__(
+        self, 
+        datapoints,
+        sep_token_id,
+        pad_token_id,
+        md_len,
+        code_len,
+        total_md_len,
+        total_code_len,
+    ):
+        self.datapoints = datapoints
+        self.sep_token_id = sep_token_id
+        self.pad_token_id = pad_token_id
+        
+        self.md_len = md_len
+        self.code_len = code_len
+        
+        self.total_md_len = total_md_len
+        self.total_code_len = total_code_len
+        self.total_len = total_md_len + total_code_len
+
+        self.select_md = self.total_md_len // self.md_len
+        self.select_code = self.total_code_len // self.code_len
+
+        self.reps = self.select_md
+
+        self.n_examples = 0
+        for i, datapoint in tqdm(enumerate(datapoints)):
+            
+            n_md = len(datapoint.md_tokens)
+            n_code = len(datapoint.code_tokens)
+            
+            self.n_examples += n_md
+
+        self.notebook_indices = torch.zeros(self.n_examples, dtype=torch.int)
+        cur_len = 0
+        for i, datapoint in enumerate(datapoints):
+            n_md = datapoint.md_tokens.size(0)
+            self.notebook_indices[cur_len:cur_len + n_md] = i
+            cur_len += n_md
+
+        self.selected_permutations = torch.zeros(self.n_examples, self.select_md, dtype=torch.long)
+        self.reset_dataset()
+
+    def __len__(self):
+        return self.n_examples
+
+    def reset_dataset(self):
+        cur_len = 0
+        for i, datapoint in enumerate(self.datapoints):
+            n_md = datapoint.md_tokens.size(0)
+            self.selected_permutations[cur_len:cur_len + n_md, :] = torch.cat([
+                torch.randperm(n_md) for _ in range(self.reps)
+            ]).view(-1, self.select_md)
+            cur_len += n_md
+
+    @staticmethod
+    def select_n(tokens, scores, max_len, keep_order):
+        n_tokens = tokens.size(0)
+        len_tokens = tokens.size(1)
+
+        n_selected = max_len // len_tokens
+
+        if n_selected >= n_tokens:
+            if keep_order:
+                return tokens, scores
+            else:
+                indices = torch.randperm(n_tokens)
+                return tokens[indices], scores[indices]
+
+        if keep_order:
+            middle_inds = np.random.choice(n_tokens - 2, n_selected - 2, replace=False)
+            middle_inds.sort()
+            indices = torch.cat((
+                torch.tensor([0]),
+                torch.tensor(middle_inds + 1),
+                torch.tensor([n_tokens - 1])
+            ))
+            return tokens[indices], scores[indices]
+        else:
+            indices = torch.randperm(n_tokens)[:n_selected]
+            return tokens[indices], scores[indices]
+
+    def __getitem__(self, ind):
+        notebook_ind = self.notebook_indices[ind]
+        datapoint = self.datapoints[notebook_ind]
+        permutation = self.selected_permutations[ind]
+
+        code_tokens, code_scores = self.select_n(
+            datapoint.code_tokens, datapoint.code_scores, self.total_code_len, True
+        )
+
+        md_tokens = datapoint.md_tokens[permutation]
+        md_scores = datapoint.md_scores[permutation]
+        md_cell_ids = datapoint.md_cell_ids[permutation]
+
+        input_ids = torch.full((self.total_len,), self.pad_token_id)
+        input_ids[:md_tokens.numel()] = md_tokens.view(-1)
+        input_ids[self.total_md_len:self.total_md_len + code_tokens.numel()] = code_tokens.view(-1)
+
+        attention_mask = (input_ids != self.pad_token_id).type(torch.float)
+
+        return {
+            'input_ids': input_ids,
+            'attention_mask': attention_mask,
+            'score': md_scores,
+            'cell_ids': md_cell_ids,
+            'notebook_id': datapoint.notebook_id,
+        }
+
+
+        
 parser = argparse.ArgumentParser()
 parser.add_argument("config")
 parser.add_argument("device", type=int)
@@ -24,15 +155,25 @@ model_name = config.get('model', 'distilbert-base-uncased')
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 print("Loading train dataset")
-train_dataset = NotebookDataset(
-    prepare_listwise_dataset(model_name, "data/all_dataset/train_df.fth"),
-    tokenizer.pad_token_id
-)
+train_dataset = pickle.load(open("data/300k_dataset/train_128_32_graphcodebert.pkl", "rb"))
+# train_dataset = NotebookDataset(
+#     prepare_listwise_dataset(model_name, "data/all_dataset/train_df.fth"),
+#     tokenizer.pad_token_id
+# )
 print("Loading val dataset")
-val_dataset = NotebookDataset(
-    prepare_listwise_dataset(model_name, "data/all_dataset/val_df.fth"),
-    tokenizer.pad_token_id,
-)
+val_dataset = pickle.load(open("data/300k_dataset/val_128_32_graphcodebert.pkl", "rb"))
+# val_dataset = NotebookDataset(
+#     prepare_listwise_dataset(model_name, "data/all_dataset/val_df.fth"),
+#     tokenizer.pad_token_id,
+# )
+
+print("Computing code sizes")
+n_code = {}
+for dp in train_dataset.datapoints:
+    n_code[dp.notebook_id] = len(dp.code_tokens)
+for dp in val_dataset.datapoints:
+    n_code[dp.notebook_id] = len(dp.code_tokens)
+
 
 train_loader = torch.utils.data.DataLoader(
     train_dataset,
@@ -74,12 +215,14 @@ if ckpt:
         model_name=model_name,
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
+        n_code=n_code,
     )
 else:
     model = ListwiseModel(
         model_name=model_name,
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,
+        n_code=n_code,
     )
 
 
@@ -91,7 +234,8 @@ def fix_state(state_dict):
         elif k.startswith("dense"):
             new_state[k.replace("dense", "linear")] = v
         else:
-            raise ValueError(f"Unexpected key: {k}")
+            new_state[k] = v
+#             raise ValueError(f"Unexpected key: {k}")
     return new_state
 
 
@@ -130,5 +274,5 @@ trainer = pl.Trainer(
     accumulate_grad_batches=config.get("accumulate_grad_batches", 1),
     # resume_from_checkpoint=ckpt,
 )
-
+# trainer.validate(model, val_loader)
 trainer.fit(model, train_loader, val_loader)
