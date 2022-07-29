@@ -21,10 +21,10 @@ class ListwiseModel(pl.LightningModule):
             code_ids=None,
     ):
         super(ListwiseModel, self).__init__()
-        
+
         self.md_len = md_len
         self.md_total = md_total
-        
+
         self.model_name = model_name
         self.model = AutoModel.from_pretrained(model_name)
         self.linear = torch.nn.Linear(768, 1)
@@ -88,12 +88,15 @@ class ListwiseModel(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         self._shared_epoch_end(outputs, "val")
 
+    def test_step(self, batch, batch_idx):
+        return self._shared_step(batch, batch_idx, "test")
+
+    def test_epoch_end(self, outputs):
+        self._shared_epoch_end(outputs, "test")
+
     def _shared_step(self, batch, batch_idx, stage):
         pred = self(batch)
         gt = batch["score"]
-        #         loss_mask = batch["score_mask"]
-
-        #         loss = ((pred - gt) * loss_mask).abs().sum() / loss_mask.sum()
         loss = self.loss_function(pred, gt)
 
         if stage == "train":
@@ -104,7 +107,7 @@ class ListwiseModel(pl.LightningModule):
             for preds, cell_ids, notebook_id in zip(pred, batch["cell_ids"], batch["notebook_id"]):
                 if len(preds) == 1:
                     cell_ids = [cell_ids]
-                    
+
                 for val, cell_id in zip(preds, cell_ids):
                     if not isinstance(cell_id, str):
                         cell_id = int(cell_id)
@@ -126,40 +129,33 @@ class ListwiseModel(pl.LightningModule):
             orders = {}
 
             for n_id, predictions in self.notebook_predictions.items():
-                if self.code_ids is None:
-                    n_code = ... # TODO: fix
-                else:
-                    code_ids = self.code_ids[n_id]
-                    n_code = len(code_ids)
+                code_ids = self.code_ids[n_id]
+                n_code = len(code_ids)
 
-                cell_ids = list(predictions.keys())
+                code_ranks = [((i + 1) / (n_code + 1), code_id) for i, code_id in enumerate(code_ids)]
 
-                if isinstance(cell_ids[0], str):
-                    code_ranks = [((i + 1) / (n_code + 1), i) for i in range(n_code)]
-                else:
-                    code_ranks = [((i + 1) / (n_code + 1), ind) for i, ind in enumerate(code_ids)]
-
-                md_ranks = [(
-                    np.mean([
-                        extract_value(x) for x in preds
-                    ]), cell_id)
+                md_ranks = [
+                    (
+                        float(np.mean([extract_value(x) for x in preds])),
+                        cell_id
+                    )
                     for cell_id, preds in predictions.items()
                 ]
                 ranks = sorted(code_ranks + md_ranks)
                 order = [cell_id for _, cell_id in ranks]
                 orders[n_id] = order
 
-
             self.built_orders = orders
-            # kt = OrderBuilder.evaluate_notebooks(orders)
-            total_inv, total_max_inv = 0, 0
-            for n_id, order in orders.items():
-                true_order = sorted(order)
-                inv, max_inv = OrderBuilder.kendall_tau(true_order, order)
-                total_inv += inv
-                total_max_inv += max_inv
-            kt = 1 - 4 * total_inv / total_max_inv
-            self.log(f"{stage}_kendall_tau", kt, on_step=False, on_epoch=True)
+
+            if stage == "val":
+                total_inv, total_max_inv = 0, 0
+                for n_id, order in orders.items():
+                    true_order = sorted(order)
+                    inv, max_inv = OrderBuilder.kendall_tau(true_order, order)
+                    total_inv += inv
+                    total_max_inv += max_inv
+                kt = 1 - 4 * total_inv / total_max_inv
+                self.log(f"{stage}_kendall_tau", kt, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         self.optimizer = torch.optim.AdamW(
