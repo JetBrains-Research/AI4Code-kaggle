@@ -1,24 +1,76 @@
 import numpy as np
 import torch
+from dataclasses import dataclass
+from tqdm.auto import tqdm
 
-from prepare_listwise_dataset_constants import *
+@dataclass
+class ProcessedNotebook:
+    code_tokens: list
+    code_scores: list
+    md_tokens: torch.tensor
+    md_scores: torch.tensor
 
+    md_cell_ids: np.ndarray
+
+    n_md: int
+    n_code: int
+    notebook_id: str = ""
+
+        
 
 class NotebookDataset(torch.utils.data.Dataset):
 
-    def __init__(self, datapoints, pad_token_id, md_len=MD_TOTAL, code_len=CODE_TOTAL):
+    def __init__(
+        self, 
+        datapoints,
+        sep_token_id,
+        pad_token_id,
+        md_len,
+        code_len,
+        total_md_len,
+        total_code_len,
+    ):
         self.datapoints = datapoints
+        self.sep_token_id = sep_token_id
+        self.pad_token_id = pad_token_id
+        
         self.md_len = md_len
         self.code_len = code_len
-        self.total_len = md_len + code_len
-        self.pad_token_id = pad_token_id
+        
+        self.total_md_len = total_md_len
+        self.total_code_len = total_code_len
+        self.total_len = total_md_len + total_code_len
 
-        self.select_md = self.md_len // MD_LEN
+        self.select_md = self.total_md_len // self.md_len
+        self.select_code = self.total_code_len // self.code_len
+
         self.reps = self.select_md
 
         self.n_examples = 0
-        for i, datapoint in enumerate(datapoints):
-            self.n_examples += datapoint.md_tokens.size(0)
+        for i, datapoint in tqdm(enumerate(datapoints)):
+            
+            n_md = len(datapoint.md_tokens)
+            md_tokens = torch.full((n_md, self.md_len), self.pad_token_id, dtype=torch.long)
+            for i, token_string in enumerate(datapoint.md_tokens):
+                if isinstance(token_string, str):
+                    for j, x in enumerate(token_string.split()[:md_len]):
+                        md_tokens[i, j] = int(x)
+                else:
+                    md_tokens[i, :] = token_string
+            datapoint.md_tokens = md_tokens
+            
+            n_code = len(datapoint.code_tokens)
+            code_tokens = torch.full((n_code, self.code_len), self.pad_token_id, dtype=torch.long)
+            for i, token_string in enumerate(datapoint.code_tokens):
+                if isinstance(token_string, str):
+                    for j, x in enumerate(token_string.split()[:code_len]):
+                        code_tokens[i, j] = int(x)
+                else:
+                    code_tokens[i, :] = token_string
+                    
+            datapoint.code_tokens = code_tokens
+            
+            self.n_examples += n_md
 
         self.notebook_indices = torch.zeros(self.n_examples, dtype=torch.int)
         cur_len = 0
@@ -47,7 +99,6 @@ class NotebookDataset(torch.utils.data.Dataset):
         n_tokens = tokens.size(0)
         len_tokens = tokens.size(1)
 
-        #         if n_selected is None:
         n_selected = max_len // len_tokens
 
         if n_selected >= n_tokens:
@@ -63,7 +114,6 @@ class NotebookDataset(torch.utils.data.Dataset):
             indices = torch.cat((
                 torch.tensor([0]),
                 torch.tensor(middle_inds + 1),
-                #                 (torch.randperm(n_tokens - 2)[:n_selected - 2] + 1).sort().values,
                 torch.tensor([n_tokens - 1])
             ))
             return tokens[indices], scores[indices]
@@ -77,7 +127,7 @@ class NotebookDataset(torch.utils.data.Dataset):
         permutation = self.selected_permutations[ind]
 
         code_tokens, code_scores = self.select_n(
-            datapoint.code_tokens, datapoint.code_scores, self.code_len, True
+            datapoint.code_tokens, datapoint.code_scores, self.total_code_len, True
         )
 
         md_tokens = datapoint.md_tokens[permutation]
@@ -86,7 +136,7 @@ class NotebookDataset(torch.utils.data.Dataset):
 
         input_ids = torch.full((self.total_len,), self.pad_token_id)
         input_ids[:md_tokens.numel()] = md_tokens.view(-1)
-        input_ids[self.md_len:self.md_len + code_tokens.numel()] = code_tokens.view(-1)
+        input_ids[self.total_md_len:self.total_md_len + code_tokens.numel()] = code_tokens.view(-1)
 
         attention_mask = (input_ids != self.pad_token_id).type(torch.float)
 
@@ -97,7 +147,7 @@ class NotebookDataset(torch.utils.data.Dataset):
             'cell_ids': md_cell_ids,
             'notebook_id': datapoint.notebook_id,
         }
-
+    
 
 def collate_fn(batch):
     input_ids = torch.stack([

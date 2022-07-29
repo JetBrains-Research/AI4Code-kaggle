@@ -15,5 +15,5 @@ md_len: 32
 md_total: 256
 code_len: 32
 
-automodel_checkpoint: "checkpoints/graphcodebert_train_exp_0_epoch_4/epoch=04-step=304412-val_kendall_tau=0.83338.ckpt"
+# automodel_checkpoint: "checkpoints/graphcodebert_train_exp_0_epoch_4/epoch=04-step=304412-val_kendall_tau=0.83338.ckpt"
 
